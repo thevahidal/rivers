@@ -7,6 +7,7 @@ function bridgeEnd(state, cfg) {
 }
 
 function routeStop(river, state, cfg) {
+  if (cfg.layout) return LAYOUTS[cfg.layout].route(river, state);
   const [a, b] = state.k;
   if (river === RIVER_E) return a === 0 ? STOP_N : bridgeEnd(state, cfg);
   if (river === RIVER_W) return a === 0 ? bridgeEnd(state, cfg) : STOP_N;
@@ -133,29 +134,40 @@ function isJammed(s, cfg) {
   return true;
 }
 
-const FLOW_CFG = { bridge: true, bay: false, caps: [0, 0, 0, 0], unchain: false };
+const LAYOUTS = {
+  road: { stops: 1, discs: 0, reach: [[0]], route: () => 0 },
+  fork: {
+    stops: 2, discs: 0, reach: [[0, 1]],
+    route: (r, s) => {
+      const c = s.rivers[r][0] && s.rivers[r][0][0];
+      const i = [0, 1].find((j) => s.stops[j].bus && s.stops[j].bus.c === c && s.stops[j].bus.fill < s.stops[j].bus.n);
+      return i === undefined ? 0 : i;
+    }
+  },
+  one: { stops: 2, discs: 1, reach: [[0, 1], [0, 1]], route: (r, s) => ((r === 0) === (s.k[0] === 0) ? 0 : 1) },
+  twin: { stops: 3, discs: 2, reach: [[0, 1, 2], [0, 1, 2], [1, 2]], route: (r, s) => routeStop(r, s, { bridge: true }) }
+};
 
-function allowedStops(s, bus) {
-  const free = [STOP_N, STOP_E, STOP_W].filter((i) => !s.stops[i].bus);
-  const inRiver = (r) => s.rivers[r].reduce((n, [c, k]) => (c === bus.c ? n + k : n), 0);
-  // The south river cannot reach the north stop.
-  return free.filter((i) => i !== STOP_N || inRiver(RIVER_E) + inRiver(RIVER_W) >= bus.n);
+function allowedStops(s, bus, cfg) {
+  const layout = LAYOUTS[cfg.layout];
+  const stops = Array.from({ length: layout.stops }, (_, i) => i).filter((i) => !s.stops[i].bus);
+  const canSupply = (i) => s.rivers.reduce((sum, river, r) => (layout.reach[r] && layout.reach[r].includes(i) ? sum + river.reduce((n, [c, k]) => (c === bus.c ? n + k : n), 0) : sum), 0);
+  return stops.filter((i) => canSupply(i) >= bus.n);
 }
 
-function flowStop(s, bus) {
-  const allowed = allowedStops(s, bus);
-  for (const i of allowed) for (let r = 0; r < 3; r++) if (s.rivers[r][0] && s.rivers[r][0][0] === bus.c && routeStop(r, s, FLOW_CFG) === i) return i;
+function flowStop(s, bus, cfg) {
+  const allowed = allowedStops(s, bus, cfg);
+  for (const i of allowed) for (let r = 0; r < s.rivers.length; r++) if (s.rivers[r][0] && s.rivers[r][0][0] === bus.c && routeStop(r, s, cfg) === i) return i;
   return allowed.length ? allowed[0] : null;
 }
 
-function flowMoves(s) {
-  const out = [['spin', 0], ['spin', 1]];
+function flowMoves(s, cfg) {
+  const out = [];
+  for (let d = 0; d < LAYOUTS[cfg.layout].discs; d++) out.push(['spin', d]);
   s.lanes.forEach((lane, l) => {
-    if (!lane[0]) return;
-    const i = flowStop(s, lane[0]);
-    if (i !== null) out.push(['call', l, i]);
+    if (lane[0]) allowedStops(s, lane[0], cfg).forEach((i) => out.push(['call', l, i]));
   });
   return out;
 }
 
-if (typeof module !== 'undefined') module.exports = { RIVER_E, RIVER_W, RIVER_S, STOP_N, STOP_E, STOP_W, STOP_BAY, routeStop, newState, clone, platUsed, settle, canCall, legalMoves, apply, isWon, isJammed, FLOW_CFG, allowedStops, flowStop, flowMoves };
+if (typeof module !== 'undefined') module.exports = { RIVER_E, RIVER_W, RIVER_S, STOP_N, STOP_E, STOP_W, STOP_BAY, routeStop, newState, clone, platUsed, settle, canCall, legalMoves, apply, isWon, isJammed, LAYOUTS, allowedStops, flowStop, flowMoves };

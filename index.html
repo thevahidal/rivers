@@ -3,16 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-<title>Rivers: Flow</title>
+<title>Rivers</title>
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&display=swap" rel="stylesheet">
 <style>
   html, body { margin: 0; height: 100%; overflow: hidden; background: #BDE8C4; font-family: 'Baloo 2', system-ui, sans-serif; color: #24324A; -webkit-user-select: none; user-select: none; }
   canvas { position: fixed; inset: 0; touch-action: none; }
   button { font-family: inherit; cursor: pointer; }
-  #top { position: fixed; top: max(10px, env(safe-area-inset-top)); left: 10px; right: 10px; display: flex; align-items: center; justify-content: flex-end; }
+  #top { position: fixed; top: max(10px, env(safe-area-inset-top)); left: 10px; right: 10px; display: flex; align-items: center; justify-content: space-between; }
   #left { position: fixed; left: 10px; bottom: max(12px, env(safe-area-inset-bottom)); }
-  .chip { padding: 4px 13px; border-radius: 18px; background: #fff; box-shadow: 0 3px 0 #A9D6B3; font-size: 18px; font-weight: 800; line-height: 1.25; white-space: nowrap; }
-  .tool { height: 36px; padding: 0 12px; border: 0; border-radius: 18px; background: #fff; box-shadow: 0 3px 0 #A9D6B3; color: #24324A; font-size: 15px; font-weight: 800; }
+  .chip { padding: 4px 13px; border-radius: 18px; background: #fff; box-shadow: 0 3px 0 rgba(36,50,74,.25); font-size: 18px; font-weight: 800; line-height: 1.25; white-space: nowrap; }
+  .tool { height: 36px; padding: 0 12px; border: 0; border-radius: 18px; background: #fff; box-shadow: 0 3px 0 rgba(36,50,74,.25); color: #24324A; font-size: 15px; font-weight: 800; }
+  #name { position: fixed; top: max(14px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); color: #fff; font-size: 19px; font-weight: 800; -webkit-text-stroke: 4px #24324A; paint-order: stroke fill; white-space: nowrap; pointer-events: none; }
   #combo { position: fixed; bottom: max(96px, calc(env(safe-area-inset-bottom) + 86px)); left: 0; right: 0; text-align: center; font-size: 42px; font-weight: 800; color: #FFC233; -webkit-text-stroke: 3px #24324A; paint-order: stroke fill; pointer-events: none; opacity: 0; }
   #combo.pop { animation: pop .35s ease-out; }
   @keyframes pop { 0% { transform: scale(.5); } 60% { transform: scale(1.3); } 100% { transform: scale(1); } }
@@ -30,32 +31,39 @@
   .blocks i:first-child { outline: 2px solid #fff; }
   .here { height: 44px; padding: 0 16px; border-radius: 20px; background: #FFC233; box-shadow: 0 4px 0 #CC9410; font-size: 19px; font-weight: 800; line-height: 44px; pointer-events: auto; cursor: pointer; }
   .dot { width: 20px; height: 20px; border: 3px solid #fff; border-radius: 50%; box-shadow: 0 2px 0 rgba(36,50,74,.25); }
-  .screen { position: fixed; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(36, 50, 74, .5); }
-  .card { width: min(88vw, 350px); padding: 24px 20px; box-sizing: border-box; border-radius: 30px; background: #fff; box-shadow: 0 10px 0 #C6D2E3; text-align: center; }
+  .screen { position: fixed; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(36, 50, 74, .55); }
+  .card { width: min(90vw, 360px); max-height: 92vh; overflow: auto; padding: 22px 18px; box-sizing: border-box; border-radius: 30px; background: #fff; box-shadow: 0 10px 0 #C6D2E3; text-align: center; }
   .card h1 { margin: 0; font-size: 36px; font-weight: 800; line-height: 1.1; }
-  .card p { margin: 8px 0 18px; font-size: 18px; font-weight: 600; color: #6B778C; line-height: 1.25; }
+  .card p { margin: 6px 0 14px; font-size: 17px; font-weight: 600; color: #6B778C; line-height: 1.25; }
+  #tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+  .tile { min-height: 66px; padding: 4px 6px; border: 0; border-radius: 16px; background: #4CC26E; box-shadow: 0 4px 0 #2F9450; color: #fff; font-size: 15px; font-weight: 800; line-height: 1.15; }
+  .tile:active { transform: translateY(3px); box-shadow: 0 1px 0 #2F9450; }
+  .tile b { display: block; font-size: 22px; line-height: 1.05; }
+  .tile small { display: block; color: #FFE08A; font-size: 13px; letter-spacing: 1px; }
+  .tile:disabled { background: #DDE3EB; box-shadow: 0 4px 0 #BFC9D6; color: #8A95A6; }
   .stars { font-size: 46px; line-height: 1.1; color: #FFC233; letter-spacing: 4px; }
-  .big { width: 100%; height: 58px; border: 0; border-radius: 22px; background: #4CC26E; box-shadow: 0 7px 0 #2F9450; color: #fff; font-size: 24px; font-weight: 800; }
+  .big { width: 100%; height: 58px; border: 0; border-radius: 22px; background: #4CC26E; box-shadow: 0 7px 0 #2F9450; color: #fff; font-size: 23px; font-weight: 800; }
   .big:active { transform: translateY(5px); box-shadow: 0 2px 0 #2F9450; }
+  .big.alt { margin-top: 12px; background: #fff; color: #24324A; box-shadow: 0 7px 0 #D5DDE8, inset 0 0 0 2px #D5DDE8; }
 </style>
 </head>
 <body>
-<div id="top"><div class="chip" id="left"></div><button class="tool" id="restart">Restart</button></div>
+<div id="top"><button class="tool" id="levels">Levels</button><button class="tool" id="restart">Restart</button></div>
+<div id="name"></div>
+<div id="left" class="chip"></div>
 <div id="combo"></div>
 <div id="hint"></div>
 <div id="count3"></div>
 <div id="labels"></div>
-<div id="start" class="screen"><div class="card"><h1>Rivers</h1><p>Tap a front bus in the lot to call it. Tap a turntable to send the crowd somewhere else. Keep the rivers pouring.</p><button id="play" class="big">Play</button></div></div>
-<div id="end" class="screen" style="display:none"><div class="card"><div id="stars" class="stars"></div><h1 id="endTitle"></h1><p id="endText"></p><button id="again" class="big">Play again</button></div></div>
+<div id="menu" class="screen"><div class="card"><h1>Rivers</h1><p>Tap a bus to call it. Keep the rivers pouring.</p><div id="tiles"></div></div></div>
+<div id="end" class="screen" style="display:none"><div class="card"><div id="stars" class="stars"></div><h1 id="endTitle"></h1><p id="endText"></p><button id="endMain" class="big"></button><button id="endAlt" class="big alt"></button></div></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="puzzle-rules.js?v=3"></script>
+<script src="puzzle-rules.js?v=4"></script>
 <script>
-const STAGE = {"rivers":[[[2,3],[3,3],[3,3],[2,3],[0,4]],[[0,3],[1,3],[2,3],[1,5],[2,3]],[[3,3],[3,3],[1,4],[0,5]]],"lanes":[[{"id":8,"c":3,"n":4},{"id":5,"c":2,"n":5},{"id":9,"c":3,"n":4},{"id":7,"c":3,"n":4},{"id":0,"c":0,"n":5}],[{"id":1,"c":0,"n":7},{"id":2,"c":1,"n":4},{"id":4,"c":1,"n":4}],[{"id":3,"c":1,"n":4},{"id":6,"c":2,"n":7}]]};
-const UNIT = 10, R = 2.6, GATE = R + 0.5, LANES = 3, ROW = 0.46, GAP = 0.5, WALK = 6.5, RUN = 8.5, RATE = 36, STALL = 3;
-const LOT_X = [-6, 0, 6], LOT_FRONT = -21, LOT_PITCH = 2.6, LOT_SCALE = 0.62, FRONT_SCALE = 0.86, AISLE = -18.3, DRIVE = 30, ACCEL = 60, BRAKE = 45;
-let FAR = 28;
-const N = 0, E = 1, S = 2, W = 3;
+const UNIT = 10, MAX_PEOPLE = 640, R = 2.6, GATE = R + 0.5, LANES = 3, ROW = 0.46, GAP = 0.5, WALK = 6.5, RUN = 8.5, RATE = 36, STALL = 3;
+const LOT_PITCH = 2.6, LOT_FRONT = -21, LOT_SCALE = 0.62, FRONT_SCALE = 0.86, AISLE = -18.3, DRIVE = 30, ACCEL = 60, BRAKE = 45, FAR_Z = 34;
+const N = 0, E = 1, S = 2, W = 3, BLUE = 0, ORANGE = 1;
 const PORT = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 const COLOURS = [
   { body: 0x3F86F5, dark: 0x2A5FB8, css: '#3F86F5' },
@@ -63,22 +71,100 @@ const COLOURS = [
   { body: 0x39B97A, dark: 0x237F52, css: '#39B97A' },
   { body: 0xA05CFF, dark: 0x6F38BF, css: '#A05CFF' }
 ];
-const DISCS = [[0, -6.4], [0, 6.4]];
-const RIVERS = [{ disc: 0, port: E }, { disc: 0, port: W }, { disc: 1, port: S }];
-const STOPS = [{ disc: 0, port: N }, { disc: 1, port: E }, { disc: 1, port: W }];
-const TOTAL = STAGE.rivers.flat().reduce((sum, block) => sum + block[1] * UNIT, 0);
-const CFG = { bridge: true };
-const otherEnd = (local) => (local < 2 ? 1 - local : 5 - local);
+const bus = (id, c, n) => ({ id, c, n });
+
+const GEOMETRY = {
+  road: {
+    discs: [],
+    roads: [[0, 11, 2.5, 59]],
+    stops: [{ ax: 0, az: -6.4, port: N }],
+    rivers: [{ ax: 0, az: -9.5, port: S, chip: [4.4, 0] }]
+  },
+  fork: {
+    discs: [],
+    roads: [[0, 2, 66, 2.5], [0, 22, 2.5, 40]],
+    stops: [{ ax: 0, az: 2, port: E }, { ax: 0, az: 2, port: W }],
+    rivers: [{ ax: 0, az: 2, port: S, chip: [4.4, 8.5], junction: true }]
+  },
+  one: {
+    discs: [[0, -3]],
+    roads: [[0, -12.1, 2.5, 12.4], [24, -3, 42, 2.5], [-24, -3, 42, 2.5], [0, 20, 2.5, 40]],
+    stops: [{ ax: 0, az: -3, port: N }, { ax: 0, az: -3, port: S }],
+    rivers: [{ ax: 0, az: -3, port: E, disc: 0, chip: [7.6, -5.9] }, { ax: 0, az: -3, port: W, disc: 0, chip: [-7.6, -5.9], right: true }]
+  },
+  twin: {
+    discs: [[0, -6.4], [0, 6.4]],
+    bridge: true,
+    roads: [[0, 0, 2.5, 7.2], [24, -6.4, 42, 2.5], [-24, -6.4, 42, 2.5], [0, 28, 2.5, 38], [0, -14, 2.5, 9], [18, 6.4, 29.5, 2.5], [-18, 6.4, 29.5, 2.5]],
+    stops: [{ ax: 0, az: -6.4, port: N }, { ax: 0, az: 6.4, port: E }, { ax: 0, az: 6.4, port: W }],
+    rivers: [{ ax: 0, az: -6.4, port: E, disc: 0, chip: [7.6, -9.3] }, { ax: 0, az: -6.4, port: W, disc: 0, chip: [-7.6, -9.3], right: true }, { ax: 0, az: 6.4, port: S, disc: 1, chip: [4.4, 13.6] }]
+  }
+};
+
+const THEMES = {
+  village: { ground: 0xCFE8B5, road: 0x6A7488, lot: 0xE3E2CE, hemi: 0.55, sun: 0.5, tint: 0xFFE6C4 },
+  harbour: { ground: 0xF3E3B9, road: 0x6E7C90, lot: 0xE8E1CB, hemi: 0.6, sun: 0.45, tint: 0xFFFFFF },
+  square: { ground: 0xEADFC9, road: 0x5F6C82, lot: 0xDDD5C2, hemi: 0.58, sun: 0.48, tint: 0xFFF3DE },
+  night: { ground: 0x2B3656, road: 0x6E7B98, lot: 0x3E4A6A, hemi: 0.78, sun: 0.35, tint: 0xBFD1FF }
+};
+
+const LEVELS = [
+  {
+    name: 'Dawn Village', layout: 'road', theme: 'village', start: [],
+    rivers: [[[BLUE, 6]]],
+    lanes: [[bus(0, BLUE, 3), bus(1, BLUE, 3)]],
+    hint: 'Tap the bus to call it',
+    props: (p) => {
+      [[-6.5, -11.5, 0xF7B2A0], [6.8, -12.5, 0xA7C7F2], [-7.2, -3.5, 0xF4D58A], [7.4, -2.5, 0xF7B2A0], [-6.8, 5.5, 0xA7C7F2], [7, 6.5, 0xF4D58A]].forEach(([x, z, c]) => p.house(x, z, c));
+      [[-3.6, -14.5], [3.8, -8], [-3.7, -0.5], [3.7, 3], [-3.8, 9.5], [3.7, 12]].forEach(([x, z]) => p.tree(x, z, 1));
+    }
+  },
+  {
+    name: 'Fishing Harbour', layout: 'fork', theme: 'harbour', start: [],
+    rivers: [[[BLUE, 3], [ORANGE, 3], [BLUE, 3], [ORANGE, 3]]],
+    lanes: [[bus(0, BLUE, 3), bus(1, ORANGE, 3)], [bus(2, ORANGE, 3), bus(3, BLUE, 3)]],
+    hint: 'Call the bus that matches the front crowd',
+    props: (p) => {
+      p.water(-8.5, 14, 10, 15);
+      p.water(8.5, 14, 10, 15);
+      [[-8, 11, 0xFF6B6B], [-6.5, 16, 0xFFFFFF], [8, 12, 0xFFC233], [7, 17, 0x5AA9E6]].forEach(([x, z, c]) => p.boat(x, z, c));
+      [[-6.5, -10, 0xF2C6A0], [6.5, -10.5, 0xBFD8D2], [-7, -5, 0xBFD8D2], [7, -4.5, 0xF2C6A0]].forEach(([x, z, c]) => p.house(x, z, c));
+    }
+  },
+  {
+    name: 'Town Square', layout: 'one', theme: 'square', start: [[0, 0], [1, 1]],
+    rivers: [[[BLUE, 6]], [[ORANGE, 6]]],
+    lanes: [[bus(0, ORANGE, 3), bus(1, BLUE, 3)], [bus(2, BLUE, 3), bus(3, ORANGE, 3)]],
+    hint: 'Tap the turntable to swap the routes',
+    props: (p) => {
+      [[-7, -11.5], [7, -11.5], [-7, 4.5], [7, 4.5]].forEach(([x, z]) => p.flowers(x, z));
+      [[-4.4, -8.5], [4.4, -8.5], [-4.4, 8], [4.4, 8], [-8.2, 10], [8.2, 10]].forEach(([x, z]) => p.tree(x, z, 0.9));
+      p.fountain(-6.5, 12);
+      p.fountain(6.5, 12);
+    }
+  },
+  null, null, null, null,
+  {
+    name: 'Stadium Night', layout: 'twin', theme: 'night', start: 'auto',
+    rivers: [[[2,3],[3,3],[3,3],[2,3],[0,4]],[[0,3],[1,3],[2,3],[1,5],[2,3]],[[3,3],[3,3],[1,4],[0,5]]],
+    lanes: [[{"id":8,"c":3,"n":4},{"id":5,"c":2,"n":5},{"id":9,"c":3,"n":4},{"id":7,"c":3,"n":4},{"id":0,"c":0,"n":5}],[{"id":1,"c":0,"n":7},{"id":2,"c":1,"n":4},{"id":4,"c":1,"n":4}],[{"id":3,"c":1,"n":4},{"id":6,"c":2,"n":7}]],
+    props: (p) => {
+      [[-5, -13], [5.2, -12.6], [-5.5, 1.6], [6, 1.2], [-5.6, 13.6], [5.4, 14]].forEach(([x, z]) => p.lamp(x, z));
+      [[-8.3, -14], [8.3, -14], [-8.6, 0.4], [8.6, 0.4], [-8.4, 15], [8.4, 15.2]].forEach(([x, z]) => p.tower(x, z));
+    }
+  },
+  null, null
+];
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xBDE8C4);
 const camera = new THREE.PerspectiveCamera(28, 1, 1, 260);
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 document.body.prepend(renderer.domElement);
-scene.add(new THREE.HemisphereLight(0xFFFFFF, 0xA8D8B4, 0.5));
+const hemi = new THREE.HemisphereLight(0xFFFFFF, 0xA8D8B4, 0.5);
+scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xFFF3DE, 0.5);
 sun.position.set(-7, 24, 9);
 sun.castShadow = true;
@@ -113,55 +199,53 @@ function part(geometry, material, x, y, z, shadow = true) {
   mesh.receiveShadow = true;
   return mesh;
 }
-scene.add(part(new THREE.BoxGeometry(140, 0.1, 140), paint(0xBDE8C4, 0.95), 0, -0.05, 0, false));
-const roadPaint = paint(0x5C6B82, 0.85), kerb = paint(0xF5F1E6, 0.8);
-function addRoad(cx, cz, w, d) {
-  scene.add(part(new THREE.BoxGeometry(w + 0.34, 0.08, d + 0.34), kerb, cx, 0.04, cz, false));
-  scene.add(part(new THREE.BoxGeometry(w, 0.1, d), roadPaint, cx, 0.06, cz, false));
-}
-addRoad(0, 0, 2.5, 7.2);
-addRoad(24, -6.4, 42, 2.5);
-addRoad(-24, -6.4, 42, 2.5);
-addRoad(0, 28, 2.5, 38);
-addRoad(0, -14, 2.5, 9);
-addRoad(18, 6.4, 29.5, 2.5);
-addRoad(-18, 6.4, 29.5, 2.5);
-addRoad(0, AISLE, 66, 2.5);
-scene.add(part(new THREE.BoxGeometry(22, 0.06, 15), paint(0xD9DFD6, 0.9), 0, 0.03, -27.2, false));
-[-3, 3].forEach((x) => scene.add(part(new THREE.BoxGeometry(0.14, 0.05, 15), paint(0xFFFFFF, 0.8), x, 0.08, -27.2, false)));
-
-const arcPaint = new THREE.MeshStandardMaterial({ color: 0x5C6B82, roughness: 0.85, side: THREE.DoubleSide });
-const discs = DISCS.map(([x, z]) => {
-  scene.add(part(new THREE.CylinderGeometry(3.32, 3.42, 0.3, 72), kerb, x, 0.15, z));
-  const spinner = new THREE.Group();
-  spinner.position.set(x, 0, z);
-  scene.add(spinner);
-  spinner.add(part(new THREE.CylinderGeometry(3.05, 3.05, 0.16, 72), paint(0xFFFFFF, 0.5), 0, 0.36, 0));
-  [[R, -R, Math.PI], [-R, R, 0]].forEach(([ax, az, start]) => {
-    const arc = new THREE.Mesh(new THREE.RingGeometry(R - 1.15, R + 1.15, 48, 1, start, Math.PI / 2), arcPaint);
-    arc.rotation.x = -Math.PI / 2;
-    arc.position.set(ax, 0.45, az);
-    spinner.add(arc);
-  });
-  spinner.add(part(new THREE.CylinderGeometry(0.42, 0.5, 0.26, 28), paint(0xFFC233, 0.4), 0, 0.56, 0));
-  return { x, z, spinner, k: 0, spin: 0, vel: 0 };
-});
-
+const kerb = paint(0xF5F1E6, 0.8);
 const leaf = [paint(0x5BBF6A, 0.8), paint(0x46A95A, 0.8)], trunk = paint(0xB0805A, 0.85);
-function tree(x, z, s) {
-  const group = new THREE.Group();
-  group.add(part(new THREE.CylinderGeometry(0.16, 0.22, 0.8, 10), trunk, 0, 0.4, 0));
-  group.add(part(new THREE.IcosahedronGeometry(0.8, 2), leaf[Math.floor(Math.abs(x * 3)) % 2], 0, 1.3, 0));
-  group.position.set(x, 0, z);
-  group.scale.setScalar(s);
-  scene.add(group);
-}
-[[-5, -13, 1.1], [-7.5, -15.5, 1.3], [5.2, -12.6, 1], [7.4, -15.8, 1.2], [-5.5, 1.6, 1.2], [-8.4, 0.2, 1], [6, 1.2, 1.1], [8.6, 0.4, 1.2], [-5.6, 13.6, 1.2], [-8.4, 15, 1], [5.4, 14, 1.1], [8.4, 15.2, 1.2]].forEach(([x, z, s]) => tree(x, z, s));
+const arcSide = THREE.DoubleSide;
+let world = new THREE.Group();
+scene.add(world);
 
-const GEO = STOPS.map((s) => {
-  const [dx, dz] = PORT[s.port], [x, z] = DISCS[s.disc];
-  return { dx, dz, x, z, doorX: x + dx * (R + 1.9), doorZ: z + dz * (R + 1.9), parkX: x + dx * (R + 4.3), parkZ: z + dz * (R + 4.3), parkTurn: dz ? 0 : Math.PI / 2 };
-});
+function makeProps() {
+  return {
+    tree(x, z, s) {
+      const g = new THREE.Group();
+      g.add(part(new THREE.CylinderGeometry(0.16, 0.22, 0.8, 10), trunk, 0, 0.4, 0));
+      g.add(part(new THREE.IcosahedronGeometry(0.8, 2), leaf[Math.floor(Math.abs(x * 3)) % 2], 0, 1.3, 0));
+      g.position.set(x, 0, z);
+      g.scale.setScalar(s);
+      world.add(g);
+    },
+    house(x, z, colour) {
+      world.add(part(roundedBox(3, 1.8, 2.6, 0.2), paint(colour, 0.7), x, 0.9, z));
+      const roof = part(new THREE.ConeGeometry(2.3, 1.1, 4), paint(0xD9665A, 0.7), x, 2.3, z);
+      roof.rotation.y = Math.PI / 4;
+      world.add(roof);
+    },
+    water(x, z, w, d) { world.add(part(roundedBox(w, 0.08, d, 1.2), paint(0x6EC6E8, 0.3), x, 0.05, z, false)); },
+    boat(x, z, colour) {
+      world.add(part(roundedBox(1.1, 0.42, 2.4, 0.45), paint(colour, 0.5), x, 0.28, z));
+      world.add(part(new THREE.CylinderGeometry(0.05, 0.05, 1.5, 8), paint(0x8A6A4B, 0.7), x, 1.1, z));
+      world.add(part(new THREE.ConeGeometry(0.5, 1.1, 3), paint(0xFFFFFF, 0.6), x + 0.05, 1.25, z));
+    },
+    flowers(x, z) {
+      world.add(part(roundedBox(4, 0.32, 3, 0.5), paint(0xB98E63, 0.8), x, 0.16, z));
+      [0xFF6B9A, 0xFFC233, 0xFF8B2B, 0xFFFFFF].forEach((c, i) => world.add(part(new THREE.IcosahedronGeometry(0.34, 1), paint(c, 0.6), x - 1.3 + i * 0.9, 0.55, z + (i % 2 ? 0.5 : -0.5))));
+    },
+    fountain(x, z) {
+      world.add(part(new THREE.CylinderGeometry(1.5, 1.6, 0.42, 28), kerb, x, 0.21, z));
+      world.add(part(new THREE.CylinderGeometry(1.2, 1.2, 0.08, 28), paint(0x6EC6E8, 0.3), x, 0.43, z, false));
+      world.add(part(new THREE.CylinderGeometry(0.22, 0.3, 1.1, 14), kerb, x, 0.9, z));
+    },
+    lamp(x, z) {
+      world.add(part(new THREE.CylinderGeometry(0.08, 0.11, 2.6, 10), paint(0x90A0BC, 0.5), x, 1.3, z));
+      world.add(part(new THREE.SphereGeometry(0.34, 14, 12), new THREE.MeshBasicMaterial({ color: 0xFFE9A8 }), x, 2.75, z, false));
+    },
+    tower(x, z) {
+      world.add(part(roundedBox(2.4, 3.2, 2.4, 0.2), paint(0x55648A, 0.7), x, 1.6, z));
+      for (let row = 0; row < 3; row++) for (let col = 0; col < 3; col++) world.add(part(new THREE.BoxGeometry(0.38, 0.05, 0.38), new THREE.MeshBasicMaterial({ color: 0xFFD978 }), x - 0.7 + col * 0.7, 3.23, z - 0.7 + row * 0.7, false));
+    }
+  };
+}
 
 function makeBus(c) {
   const col = COLOURS[c], group = new THREE.Group();
@@ -180,11 +264,13 @@ function makeBus(c) {
   return group;
 }
 
-const bodies = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.16, 0.21, 0.4, 10), new THREE.MeshStandardMaterial({ roughness: 0.5 }), TOTAL);
-const heads = new THREE.InstancedMesh(new THREE.SphereGeometry(0.165, 12, 10), new THREE.MeshStandardMaterial({ roughness: 0.55 }), TOTAL);
+const bodies = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.16, 0.21, 0.4, 10), new THREE.MeshStandardMaterial({ roughness: 0.5 }), MAX_PEOPLE);
+const heads = new THREE.InstancedMesh(new THREE.SphereGeometry(0.165, 12, 10), new THREE.MeshStandardMaterial({ roughness: 0.55 }), MAX_PEOPLE);
 bodies.castShadow = heads.castShadow = true;
 bodies.frustumCulled = heads.frustumCulled = false;
 scene.add(bodies, heads);
+const paintColor = new THREE.Color();
+for (let i = 0; i < MAX_PEOPLE; i++) { bodies.setColorAt(i, paintColor.setHex(0xffffff)); heads.setColorAt(i, paintColor.setHex(0xffffff)); }
 
 const POPS = 90;
 const pops = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.15, 1), new THREE.MeshBasicMaterial(), POPS);
@@ -194,9 +280,10 @@ const popBits = Array.from({ length: POPS }, (_, i) => { pops.setMatrixAt(i, new
 let nextPop = 0;
 
 const el = (id) => document.getElementById(id);
-const scratch = new THREE.Object3D(), paintColor = new THREE.Color();
-let audio, phase = 'menu', countdown = 0, people = [], lines = [[], [], []], acc = [0, 0, 0], stops = [], depot = [], flying = [];
-let boarded = 0, runners = 0, shake = 0, combo = 0, bestCombo = 0, sinceFlow = 0, labels = {}, lastBlocks = ['', '', ''], lastTick = 0, picked = null;
+const scratch = new THREE.Object3D();
+let audio, phase = 'menu', countdown = 0, people = [], lines = [], acc = [], stops = [], depot = [], flying = [], discs = [];
+let boarded = 0, runners = 0, shake = 0, combo = 0, bestCombo = 0, sinceFlow = 0, labels = {}, lastBlocks = [], lastTick = 0, picked = null;
+let levelIndex = 0, level = null, geo = null, layout = null, CFG = null, GEO = [], TOTAL = 0, FAR = 28, hintTimer, levelHintOn = false;
 
 function tone(freq, length, volume) {
   if (!audio) return;
@@ -231,32 +318,87 @@ function place(node, x, y, z) {
   node.style.top = (1 - p.y) / 2 * innerHeight + 'px';
 }
 
-const routeState = () => ({ k: discs.map((d) => d.k % 2) });
-const routeOf = (r) => routeStop(r, routeState(), CFG);
+function buildWorld() {
+  scene.remove(world);
+  world = new THREE.Group();
+  scene.add(world);
+  const theme = THEMES[level.theme], road = paint(theme.road, 0.85);
+  scene.background = new THREE.Color(theme.ground);
+  document.body.style.background = '#' + theme.ground.toString(16).padStart(6, '0');
+  hemi.intensity = theme.hemi;
+  sun.intensity = theme.sun;
+  sun.color.setHex(theme.tint);
+  world.add(part(new THREE.BoxGeometry(140, 0.1, 140), paint(theme.ground, 0.95), 0, -0.05, 0, false));
+  const addRoad = (cx, cz, w, d) => {
+    world.add(part(new THREE.BoxGeometry(w + 0.34, 0.08, d + 0.34), kerb, cx, 0.04, cz, false));
+    world.add(part(new THREE.BoxGeometry(w, 0.1, d), road, cx, 0.06, cz, false));
+  };
+  addRoad(0, AISLE, 66, 2.5);
+  geo.roads.forEach(([cx, cz, w, d]) => addRoad(cx, cz, w, d));
+  world.add(part(new THREE.BoxGeometry(22, 0.06, 15), paint(theme.lot, 0.9), 0, 0.03, -27.2, false));
+  for (let l = 1; l < level.lanes.length; l++) world.add(part(new THREE.BoxGeometry(0.14, 0.05, 15), paint(0xFFFFFF, 0.8), laneX(l) - 3, 0.08, -27.2, false));
+  const arcPaint = new THREE.MeshStandardMaterial({ color: theme.road, roughness: 0.85, side: arcSide });
+  discs = geo.discs.map(([x, z]) => {
+    world.add(part(new THREE.CylinderGeometry(3.32, 3.42, 0.3, 72), kerb, x, 0.15, z));
+    const spinner = new THREE.Group();
+    spinner.position.set(x, 0, z);
+    world.add(spinner);
+    spinner.add(part(new THREE.CylinderGeometry(3.05, 3.05, 0.16, 72), paint(0xFFFFFF, 0.5), 0, 0.36, 0));
+    [[R, -R, Math.PI], [-R, R, 0]].forEach(([ax, az, start]) => {
+      const arc = new THREE.Mesh(new THREE.RingGeometry(R - 1.15, R + 1.15, 48, 1, start, Math.PI / 2), arcPaint);
+      arc.rotation.x = -Math.PI / 2;
+      arc.position.set(ax, 0.45, az);
+      spinner.add(arc);
+    });
+    spinner.add(part(new THREE.CylinderGeometry(0.42, 0.5, 0.26, 28), paint(0xFFC233, 0.4), 0, 0.56, 0));
+    return { x, z, spinner, k: 0, spin: 0, vel: 0 };
+  });
+  level.props(makeProps());
+}
+
+const laneX = (l) => (l - (level.lanes.length - 1) / 2) * 6;
+
+function loadLevel(i) {
+  levelIndex = i;
+  level = LEVELS[i];
+  layout = LAYOUTS[level.layout];
+  geo = GEOMETRY[level.layout];
+  CFG = { layout: level.layout, caps: [0, 0, 0, 0] };
+  GEO = geo.stops.map((s) => {
+    const [dx, dz] = PORT[s.port];
+    return { dx, dz, x: s.ax, z: s.az, doorX: s.ax + dx * (R + 1.9), doorZ: s.az + dz * (R + 1.9), parkX: s.ax + dx * (R + 4.3), parkZ: s.az + dz * (R + 4.3), parkTurn: dz ? 0 : Math.PI / 2 };
+  });
+  TOTAL = level.rivers.flat().reduce((sum, block) => sum + block[1] * UNIT, 0);
+  buildWorld();
+  el('name').textContent = `${i + 1}. ${level.name}`;
+}
+
+const routeView = (k) => ({
+  k: k || discs.map((d) => d.k % 2),
+  rivers: lines.map((line) => (line[0] ? [[line[0].c, 1]] : [])),
+  stops: stops.map((st) => ({ bus: st.bus ? { c: st.bus.c, n: st.bus.seats, fill: st.bus.claimed } : null }))
+});
+const routeOf = (r) => routeStop(r, routeView(), CFG);
 const wants = (stop, c) => !!stop.bus && stop.bus.parked && stop.bus.c === c && stop.bus.claimed < stop.bus.seats;
 
 function reset() {
-  flying.forEach((f) => scene.remove(f.mesh));
+  flying.forEach((f) => world.remove(f.mesh));
   flying = [];
-  stops.forEach((s) => { if (s.bus) scene.remove(s.bus.mesh); });
-  stops = STOPS.map(() => ({ bus: null }));
+  stops.forEach((s) => { if (s.bus) world.remove(s.bus.mesh); });
+  stops = geo.stops.map(() => ({ bus: null }));
   discs.forEach((d) => { d.k = 0; d.spin = 0; d.vel = 0; d.spinner.rotation.y = 0; });
-  depot.flat().forEach((b) => scene.remove(b.mesh));
-  depot = STAGE.lanes.map((lane, l) => lane.map((b, j) => {
-    const mesh = makeBus(b.c);
-    mesh.position.set(LOT_X[l], 0.1, LOT_FRONT - j * LOT_PITCH);
-    mesh.scale.setScalar(LOT_SCALE);
-    scene.add(mesh);
-    return { ...b, mesh };
-  }));
   boarded = runners = combo = bestCombo = sinceFlow = 0;
   picked = null;
-  acc = [0, 0, 0];
-  lastBlocks = ['', '', ''];
+  acc = level.rivers.map(() => 0);
+  lastBlocks = level.rivers.map(() => '');
   people = [];
-  lines = [[], [], []];
+  lines = level.rivers.map(() => []);
   let id = 0;
-  STAGE.rivers.forEach((river, r) => river.forEach(([c, n], block) => {
+  scratch.scale.setScalar(0);
+  scratch.position.set(0, 0, 0);
+  scratch.updateMatrix();
+  for (let i = 0; i < MAX_PEOPLE; i++) { bodies.setMatrixAt(i, scratch.matrix); heads.setMatrixAt(i, scratch.matrix); }
+  level.rivers.forEach((river, r) => river.forEach(([c, n], block) => {
     for (let i = 0; i < n * UNIT; i++) {
       const p = { id, c, river: r, block, lane: i % LANES, state: 'line', s: 0, target: 0, x: 0, z: 0, bob: Math.random() * 6.28, u: 0, path: null, stop: null, hop: 0 };
       people.push(p);
@@ -268,22 +410,35 @@ function reset() {
   }));
   bodies.instanceColor.needsUpdate = heads.instanceColor.needsUpdate = true;
   lines.forEach((line) => layoutLine(line, true));
+  depot = level.lanes.map((lane, l) => lane.map((b, j) => {
+    const mesh = makeBus(b.c);
+    mesh.position.set(laneX(l), 0.1, LOT_FRONT - j * LOT_PITCH);
+    mesh.scale.setScalar(LOT_SCALE);
+    world.add(mesh);
+    return { ...b, mesh };
+  }));
   el('labels').innerHTML = '';
   labels = {
-    pills: STOPS.map(() => pin('pill', '<span></span><div class="bar"><i></i></div>')),
-    dots: STOPS.map(() => pin('dot', '')),
-    here: STOPS.map((_, i) => {
+    pills: GEO.map(() => pin('pill', '<span></span><div class="bar"><i></i></div>')),
+    dots: GEO.map(() => pin('dot', '')),
+    here: GEO.map((_, i) => {
       const node = pin('here', 'Here');
       node.onclick = () => { if (picked !== null && phase === 'playing') sendBus(picked, i); };
       return node;
     }),
-    blocks: RIVERS.map((_, r) => pin('blocks' + (r === 1 ? ' right' : ''), ''))
+    blocks: geo.rivers.map((river) => pin('blocks' + (river.right ? ' right' : ''), ''))
   };
   depot.flat().forEach((b) => { b.label = pin('seat', b.n * UNIT); });
   el('combo').style.opacity = 0;
   hint('');
-  [0, 1, 2].forEach((lane) => sendBus(lane, flowStop(snapshot(), seatsOf(depot[lane][0]))));
-  stops.forEach((s, i) => { if (s.bus) parkNow(i, true); });
+  const opening = level.start === 'auto'
+    ? depot.map((_, l) => [l, null])
+    : level.start;
+  opening.forEach(([l, stop]) => {
+    const chosen = stop === null ? flowStop(snapshot(), seatsOf(depot[l][0]), CFG) : stop;
+    sendBus(l, chosen);
+    parkNow(chosen, true);
+  });
   updateLeft();
 }
 
@@ -299,14 +454,15 @@ function layoutLine(line, instant) {
   });
 }
 function linePos(p) {
-  const river = RIVERS[p.river], [dx, dz] = PORT[river.port], [ox, oz] = DISCS[river.disc], lat = (p.lane - 1) * 0.66;
-  return [ox + dx * p.s + (dz ? lat : 0), oz + dz * p.s + (dx ? lat : 0)];
+  const river = geo.rivers[p.river], [dx, dz] = PORT[river.port], lat = (p.lane - 1) * 0.66;
+  return [river.ax + dx * p.s + (dz ? lat : 0), river.az + dz * p.s + (dx ? lat : 0)];
 }
 function buildPath(p, stopIndex) {
-  const g = GEO[stopIndex], lat = (p.lane - 1) * 0.66, points = [linePos(p)];
-  let disc = RIVERS[p.river].disc, port = RIVERS[p.river].port;
-  for (let guard = 0; guard < 2; guard++) {
-    const d = discs[disc], k = d.k, local = ((port - k) % 4 + 4) % 4, out = (otherEnd(local) + k) % 4;
+  const g = GEO[stopIndex], lat = (p.lane - 1) * 0.66, river = geo.rivers[p.river], points = [linePos(p)];
+  if (river.junction) points.push([river.ax + lat * 0.5, river.az]);
+  let disc = river.disc, port = river.port;
+  for (let guard = 0; guard < 2 && disc !== undefined; guard++) {
+    const d = discs[disc], k = d.k, local = ((port - k) % 4 + 4) % 4, out = (((local < 2 ? 1 - local : 5 - local) + k) % 4);
     const first = local % 2 === 0, turn = k * Math.PI / 2, r = R + lat;
     for (let i = 0; i <= 12; i++) {
       const t = (first ? i / 12 : 1 - i / 12) * Math.PI / 2;
@@ -314,7 +470,7 @@ function buildPath(p, stopIndex) {
       const lz = local < 2 ? -R + r * Math.sin(t) : R - r * Math.sin(t);
       points.push([d.x + lx * Math.cos(turn) - lz * Math.sin(turn), d.z + lx * Math.sin(turn) + lz * Math.cos(turn)]);
     }
-    if (disc === 0 && out === S) { disc = 1; port = N; } else break;
+    if (geo.bridge && disc === 0 && out === S) { disc = 1; port = N; } else break;
   }
   points.push([g.doorX + (g.dz ? lat * 0.3 : 0), g.doorZ + (g.dx ? lat * 0.3 : 0)]);
   const lengths = [0];
@@ -351,6 +507,7 @@ function snapshot() {
     moves: 0
   };
 }
+
 function roundCorners(points, radius = 1.6) {
   const out = [points[0]];
   for (let i = 1; i < points.length - 1; i++) {
@@ -397,32 +554,35 @@ function turnToward(mesh, want, dt) {
   if (turn < -Math.PI / 2) turn += Math.PI;
   mesh.rotation.y += turn * Math.min(1, dt * 18);
 }
-const seatsOf = (bus) => ({ c: bus.c, n: bus.n * UNIT });
+
+const seatsOf = (b) => ({ c: b.c, n: b.n * UNIT });
 function callLane(lane) {
-  const bus = depot[lane][0];
-  if (!bus || phase !== 'playing') return;
+  const b = depot[lane][0];
+  if (!b || phase !== 'playing') return;
   if (picked === lane) { picked = null; return; }
-  const options = allowedStops(snapshot(), seatsOf(bus));
+  const options = allowedStops(snapshot(), seatsOf(b), CFG);
   if (!options.length) {
     picked = null;
-    hint(stops.some((st) => !st.bus) ? 'This bus needs a side stop' : 'All stops are taken');
+    hint(stops.some((st) => !st.bus) ? 'This bus needs another stop' : 'All stops are taken');
     tone(90, 0.15, 0.2);
     return;
   }
+  clearLevelHint();
   if (options.length === 1) { sendBus(lane, options[0]); return; }
   picked = lane;
   tone(260, 0.08, 0.08);
 }
 function sendBus(lane, i) {
   picked = null;
-  hint('');
-  const bus = depot[lane].shift();
-  bus.label.remove();
-  const g = GEO[i], from = [bus.mesh.position.x, bus.mesh.position.z];
-  const path = i === 0
+  if (!levelHintOn) hint('');
+  const b = depot[lane].shift();
+  b.label.remove();
+  const g = GEO[i], from = [b.mesh.position.x, b.mesh.position.z];
+  const side = g.dx || 1;
+  const path = g.dz < 0
     ? roundCorners([from, [from[0], AISLE], [0, AISLE], [g.parkX, g.parkZ]])
-    : roundCorners([from, [from[0], AISLE], [g.dx * FAR, AISLE]]).concat([[g.dx * FAR, g.z, true], [g.parkX, g.parkZ]]);
-  stops[i].bus = { id: bus.id, mesh: bus.mesh, c: bus.c, seats: bus.n * UNIT, claimed: 0, fill: 0, parked: false, squash: 0, path, size: FRONT_SCALE, face: 0, speed: 0 };
+    : roundCorners([from, [from[0], AISLE], [side * FAR, AISLE]]).concat([[g.x + g.dx * FAR, g.z + g.dz * FAR_Z, true], [g.parkX, g.parkZ]]);
+  stops[i].bus = { id: b.id, mesh: b.mesh, c: b.c, seats: b.n * UNIT, claimed: 0, fill: 0, parked: false, squash: 0, path, size: FRONT_SCALE, face: 0, speed: 0 };
   tone(330, 0.1, 0.1);
 }
 function parkNow(i, instant) {
@@ -432,22 +592,22 @@ function parkNow(i, instant) {
   b.path = [];
   if (instant) { b.size = 1; b.mesh.rotation.y = g.parkTurn; }
 }
-let hintTimer;
-function hint(text) {
+function clearLevelHint() { if (levelHintOn) { levelHintOn = false; hint(''); } }
+function hint(text, sticky) {
   el('hint').textContent = text;
   el('hint').style.display = text ? '' : 'none';
   clearTimeout(hintTimer);
-  if (text) hintTimer = setTimeout(() => hint(''), 1500);
+  if (text && !sticky) hintTimer = setTimeout(() => hint(levelHintOn ? level.hint : '', levelHintOn), 1500);
 }
 function updateLeft() { el('left').textContent = `${TOTAL - boarded} left`; }
 
 function twist(index) {
   if (phase !== 'playing') return;
+  clearLevelHint();
   discs[index].k++;
   discs[index].vel += 9;
   tone(190, 0.14, 0.13);
 }
-
 function showCombo() {
   const node = el('combo');
   if (combo < 2) { node.style.opacity = 0; return; }
@@ -457,18 +617,17 @@ function showCombo() {
   void node.offsetWidth;
   node.classList.add('pop');
 }
-
 function releaseFlow(dt) {
   let moved = false;
-  RIVERS.forEach((_, r) => {
+  lines.forEach((line, r) => {
     acc[r] = Math.min(acc[r] + dt * RATE, 3);
     while (acc[r] >= 1) {
-      const head = lines[r][0];
+      const head = line[0];
       if (!head || head.s > GATE + 1) break;
       const i = routeOf(r), stop = i === null ? null : stops[i];
       if (!stop || !wants(stop, head.c)) { acc[r] = 0; break; }
       acc[r] -= 1;
-      lines[r].shift();
+      line.shift();
       stop.bus.claimed++;
       head.state = 'run';
       head.stop = stop;
@@ -484,7 +643,6 @@ function releaseFlow(dt) {
     if (sinceFlow > STALL && combo > 0) { combo = 0; showCombo(); }
   }
 }
-
 function board(p) {
   const stop = p.stop, b = stop.bus;
   p.state = 'gone';
@@ -499,8 +657,8 @@ function board(p) {
 }
 function sendOff(stop) {
   const b = stop.bus, i = stops.indexOf(stop), g = GEO[i], m = b.mesh.position;
-  burst(b.mesh.position.x, 2, b.mesh.position.z, 0xFFC233, 20);
-  const path = i === 0 ? roundCorners([[m.x, m.z], [0, AISLE], [FAR, AISLE]]) : [[g.dx * FAR, g.z]];
+  burst(m.x, 2, m.z, 0xFFC233, 20);
+  const path = g.dz < 0 ? roundCorners([[m.x, m.z], [0, AISLE], [FAR, AISLE]]) : [[g.x + g.dx * FAR, g.z + g.dz * FAR_Z]];
   flying.push({ mesh: b.mesh, path, speed: 0, face: g.parkTurn });
   stop.bus = null;
   combo++;
@@ -508,27 +666,51 @@ function sendOff(stop) {
   showCombo();
   shake = Math.max(shake, 0.3);
   const lift = Math.min(combo, 8) * 45;
-  [523, 659, 784].forEach((f, i) => setTimeout(() => tone(f + lift, 0.2, 0.12), i * 70));
+  [523, 659, 784].forEach((f, n) => setTimeout(() => tone(f + lift, 0.2, 0.12), n * 70));
   if (boarded === TOTAL) {
     phase = 'done';
     setTimeout(() => finish(true), 900);
   }
 }
+
+const loadStars = () => { try { return JSON.parse(localStorage.getItem('rivers-stars') || '{}'); } catch (e) { return {}; } };
+function saveStars(i, n) {
+  const all = loadStars();
+  if ((all[i] || 0) >= n) return;
+  all[i] = n;
+  try { localStorage.setItem('rivers-stars', JSON.stringify(all)); } catch (e) {}
+}
+function nextBuilt(i) {
+  for (let n = i + 1; n < LEVELS.length; n++) if (LEVELS[n]) return n;
+  return null;
+}
 function finish(won) {
   phase = 'over';
-  el('stars').textContent = won ? '★'.repeat(bestCombo >= 7 ? 3 : bestCombo >= 4 ? 2 : 1).padEnd(3, '☆') : '';
+  picked = null;
+  const buses = level.lanes.flat().length;
+  const stars = bestCombo >= Math.ceil(buses * 0.7) ? 3 : bestCombo >= Math.ceil(buses * 0.4) ? 2 : 1;
+  el('stars').textContent = won ? '★'.repeat(stars).padEnd(3, '☆') : '';
   el('endTitle').textContent = won ? 'All aboard!' : 'No way out';
   el('endText').textContent = won ? `${TOTAL} people home. Best combo ×${bestCombo}.` : 'No crowd can reach its bus and no bus can come. Try a different bus order.';
+  const next = won ? nextBuilt(levelIndex) : null;
+  if (won) saveStars(levelIndex, stars);
+  el('endMain').textContent = next !== null ? 'Next level' : won ? 'All levels' : 'Try again';
+  el('endMain').onclick = () => (next !== null ? play(next) : won ? openMenu() : play(levelIndex));
+  el('endAlt').textContent = won ? 'Play again' : 'All levels';
+  el('endAlt').onclick = () => (won ? play(levelIndex) : openMenu());
   el('end').style.display = 'flex';
   tone(won ? 784 : 120, 0.4, 0.2);
 }
 function isJammed() {
   if (runners > 0 || stops.some((st) => st.bus && !st.bus.parked)) return false;
   if (!lines.some((line) => line.length)) return false;
-  if (flowMoves(snapshot()).some((m) => m[0] === 'call')) return false;
-  for (let a = 0; a < 2; a++) for (let b = 0; b < 2; b++) for (let r = 0; r < 3; r++) {
-    const head = lines[r][0];
-    if (head && wants(stops[routeStop(r, { k: [a, b] }, CFG)], head.c)) return false;
+  if (flowMoves(snapshot(), CFG).some((m) => m[0] === 'call')) return false;
+  for (let mask = 0; mask < (1 << discs.length); mask++) {
+    const k = discs.map((_, d) => (mask >> d) & 1), view = routeView(k);
+    for (let r = 0; r < lines.length; r++) {
+      const head = lines[r][0];
+      if (head && wants(stops[routeStop(r, view, CFG)], head.c)) return false;
+    }
   }
   return true;
 }
@@ -539,7 +721,7 @@ function drawPeople(dt, time) {
     let x, z, y = 0.39, scale = 1;
     if (p.state === 'gone') { scale = 0; x = z = 0; }
     else if (p.state === 'line') {
-      p.s = Math.max(p.target, p.s - (phase === 'playing' ? WALK * dt : 0));
+      p.s = p.s === p.target ? p.s : Math.max(p.target, p.s - (phase === 'playing' ? WALK * dt : 0));
       [x, z] = linePos(p);
       y += Math.abs(Math.sin(time * 9 + p.bob)) * 0.05;
     } else if (p.state === 'run') {
@@ -587,7 +769,7 @@ function drawBuses(dt, time) {
     const f = flying[i];
     const done = stepAlong(f, dt, false);
     turnToward(f.mesh, f.face, dt);
-    if (done) { scene.remove(f.mesh); flying.splice(i, 1); }
+    if (done) { world.remove(f.mesh); flying.splice(i, 1); }
   }
 }
 function drawLot(dt, time) {
@@ -620,14 +802,15 @@ function updateLabels() {
   if (!labels.pills) return;
   let options = [];
   if (picked !== null && phase === 'playing') {
-    options = allowedStops(snapshot(), seatsOf(depot[picked][0]));
+    options = allowedStops(snapshot(), seatsOf(depot[picked][0]), CFG);
     if (!options.length) picked = null;
   }
-  STOPS.forEach((_, i) => {
+  GEO.forEach((g, i) => {
     const show = picked !== null && options.includes(i);
     labels.here[i].style.display = show ? '' : 'none';
-    if (show) place(labels.here[i], GEO[i].parkX, 0.3, GEO[i].parkZ);
+    if (show) place(labels.here[i], g.parkX, 0.3, g.parkZ);
   });
+  const view = routeView();
   stops.forEach((stop, i) => {
     const pill = labels.pills[i], b = stop.bus, g = GEO[i];
     pill.style.display = b && b.parked ? '' : 'none';
@@ -639,12 +822,13 @@ function updateLabels() {
       if (g.dz) place(pill, b.mesh.position.x - 3.1, 0.2, b.mesh.position.z);
       else place(pill, b.mesh.position.x, 0.2, b.mesh.position.z - 2.3);
     }
-    const dot = labels.dots[i], from = phase === 'playing' ? [0, 1, 2].find((r) => lines[r][0] && routeOf(r) === i) : undefined;
-    const colour = b && b.claimed > b.fill ? b.c : from === undefined ? null : lines[from][0].c;
+    const dot = labels.dots[i];
+    const from = phase === 'playing' ? lines.findIndex((line, r) => line[0] && (layout.discs ? routeStop(r, view, CFG) === i : layout.reach[r].includes(i))) : -1;
+    const colour = b && b.claimed > b.fill ? b.c : from < 0 ? null : lines[from][0].c;
     dot.style.display = colour === null ? 'none' : '';
     if (colour !== null) { dot.style.background = COLOURS[colour].css; place(dot, g.doorX, 0.4, g.doorZ); }
   });
-  RIVERS.forEach((_, r) => {
+  geo.rivers.forEach((river, r) => {
     const box = labels.blocks[r], parts = [];
     lines[r].forEach((p) => {
       const last = parts[parts.length - 1];
@@ -653,9 +837,7 @@ function updateLabels() {
     const html = parts.map((b) => `<i style="background:${COLOURS[b.c].css}">${b.n}</i>`).join('');
     if (html !== lastBlocks[r]) { box.innerHTML = html; lastBlocks[r] = html; }
     box.style.display = html ? '' : 'none';
-    if (r === 0) place(box, 7.6, 0.2, -9.3);
-    else if (r === 1) place(box, -7.6, 0.2, -9.3);
-    else place(box, 4.4, 0.2, 13.6);
+    place(box, river.chip[0], 0.2, river.chip[1]);
   });
 }
 
@@ -674,6 +856,7 @@ function update(dt) {
       phase = 'playing';
       el('count3').textContent = 'Go!';
       tone(784, 0.3, 0.2);
+      if (level.hint) { levelHintOn = true; hint(level.hint, true); }
       setTimeout(() => { if (el('count3').textContent === 'Go!') el('count3').textContent = ''; }, 500);
     } else if (shown !== before || el('count3').textContent === '') {
       el('count3').textContent = shown;
@@ -704,14 +887,35 @@ function resize() {
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
 }
-function begin() {
-  el('start').style.display = 'none';
+
+function play(i) {
+  el('menu').style.display = 'none';
   el('end').style.display = 'none';
   audio = audio || new (window.AudioContext || window.webkitAudioContext)();
   audio.resume();
+  levelHintOn = false;
+  el('count3').textContent = '';
+  stops.forEach((s) => { if (s.bus) world.remove(s.bus.mesh); });
+  stops = [];
+  flying = [];
+  loadLevel(i);
   phase = 'countdown';
   countdown = 3;
   reset();
+}
+function openMenu() {
+  phase = 'menu';
+  el('end').style.display = 'none';
+  hint('');
+  levelHintOn = false;
+  renderMenu();
+  el('menu').style.display = 'flex';
+}
+function renderMenu() {
+  const stars = loadStars();
+  el('tiles').innerHTML = LEVELS.map((lv, i) => (lv
+    ? `<button class="tile" data-level="${i}"><b>${i + 1}</b>${lv.name}<small>${'★'.repeat(stars[i] || 0).padEnd(3, '☆')}</small></button>`
+    : `<button class="tile" disabled><b>${i + 1}</b>Coming soon</button>`)).join('');
 }
 
 const raycaster = new THREE.Raycaster(), floorPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
@@ -719,7 +923,7 @@ renderer.domElement.addEventListener('pointerdown', (e) => {
   raycaster.setFromCamera({ x: e.clientX / innerWidth * 2 - 1, y: 1 - e.clientY / innerHeight * 2 }, camera);
   const point = raycaster.ray.intersectPlane(floorPlane, new THREE.Vector3());
   if (!point) return;
-  for (let l = 0; l < 3; l++) {
+  for (let l = 0; l < depot.length; l++) {
     const front = depot[l][0];
     if (!front) continue;
     const p = front.mesh.position;
@@ -728,14 +932,19 @@ renderer.domElement.addEventListener('pointerdown', (e) => {
   }
   discs.forEach((d, i) => { if (Math.hypot(point.x - d.x, point.z - d.z) < 4.6) twist(i); });
 });
+el('tiles').addEventListener('click', (e) => {
+  const tile = e.target.closest('.tile');
+  if (tile && !tile.disabled) play(+tile.dataset.level);
+});
 addEventListener('resize', resize);
-el('play').onclick = begin;
-el('again').onclick = begin;
-el('restart').onclick = () => { if (phase === 'playing' || phase === 'countdown') begin(); };
+el('restart').onclick = () => { if (phase === 'playing' || phase === 'countdown') play(levelIndex); };
+el('levels').onclick = openMenu;
 
 resize();
+loadLevel(0);
 phase = 'menu';
 reset();
+renderMenu();
 let last = performance.now();
 function frame(now) {
   update(Math.min((now - last) / 1000, 0.05));
