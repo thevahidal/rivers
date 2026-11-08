@@ -154,22 +154,4 @@ function flowMoves(s) {
   return out;
 }
 
-const flowKey = (s) => s.k.join('') + '|' + s.rivers.map((r) => r.map((b) => b.join(':')).join(',')).join('/') + '|' + s.lanes.map((l) => l.length).join('') + '|' + s.stops.map((st) => (st.bus ? st.bus.id + ':' + st.bus.fill : '-')).join('/');
-
-function canWin(state) {
-  const first = clone(state);
-  settle(first, FLOW_CFG, []);
-  const seen = new Set([flowKey(first)]), stack = [first];
-  while (stack.length) {
-    const s = stack.pop();
-    if (isWon(s)) return true;
-    if (seen.size > 30000) return true;
-    for (const m of flowMoves(s)) {
-      const next = apply(s, FLOW_CFG, m).state, k = flowKey(next);
-      if (!seen.has(k)) { seen.add(k); stack.push(next); }
-    }
-  }
-  return false;
-}
-
-if (typeof module !== 'undefined') module.exports = { RIVER_E, RIVER_W, RIVER_S, STOP_N, STOP_E, STOP_W, STOP_BAY, routeStop, newState, clone, platUsed, settle, canCall, legalMoves, apply, isWon, isJammed, FLOW_CFG, flowStop, flowMoves, flowKey, canWin };
+if (typeof module !== 'undefined') module.exports = { RIVER_E, RIVER_W, RIVER_S, STOP_N, STOP_E, STOP_W, STOP_BAY, routeStop, newState, clone, platUsed, settle, canCall, legalMoves, apply, isWon, isJammed, FLOW_CFG, flowStop, flowMoves };
