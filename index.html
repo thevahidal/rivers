@@ -3,1267 +3,202 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-<title>Rivers</title>
-<link href="https://fonts.googleapis.com/css2?family=Overpass:wght@600;800&display=swap" rel="stylesheet">
+<title>Rivers: Flow</title>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&display=swap" rel="stylesheet">
 <style>
-  html, body { margin: 0; height: 100%; overflow: hidden; background: #23272F; color: #F3F5F7; font-family: Overpass, system-ui, sans-serif; }
-  canvas { position: fixed; inset: 0; touch-action: none; cursor: pointer; }
-  .hud { position: fixed; left: 0; right: 0; text-align: center; pointer-events: none; }
-  #coins { top: 18px; left: auto; right: 12px; font-size: 26px; font-weight: 800; color: #FFD84A; text-shadow: 0 2px 0 #1A1D23; }
-  #countdown { top: 32%; font-size: 120px; font-weight: 800; text-shadow: 0 6px 0 #1A1D23; }
-  #hint { bottom: 20px; left: 50%; right: auto; transform: translateX(-50%); max-width: 92vw; padding: 2px 12px; border-radius: 8px; background: rgba(18, 20, 25, .6); font-size: 19px; font-weight: 800; }
-  #hint:empty { display: none; }
-  #progress { top: 66px; left: 50%; right: auto; transform: translateX(-50%); width: max-content; max-width: 94vw; box-sizing: border-box; padding: 2px 12px; border-radius: 8px; background: rgba(18, 20, 25, .6); font-size: 16px; font-weight: 800; }
-  #meter { top: 96px; left: 50%; right: auto; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; padding: 2px 12px; border-radius: 8px; background: rgba(18, 20, 25, .6); font-size: 13px; font-weight: 800; }
-  #track { width: min(60vw, 320px); height: 16px; border-radius: 8px; background: #1A1D23; overflow: hidden; }
-  #fill { height: 100%; width: 0; background: #FF5A4F; }
-  #powers { bottom: 62px; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; padding: 0 12px; }
-  #powers button { pointer-events: auto; height: 52px; padding: 0 20px; border: 0; border-radius: 12px; background: #F3F5F7; color: #23272F; font: 800 16px Overpass, system-ui, sans-serif; cursor: pointer; }
-  #powers button:disabled { background: #3B4250; color: #A9B2BF; cursor: default; }
-  @media (max-width: 480px) {
-    #powers { bottom: 72px; gap: 6px; padding: 0 6px; flex-wrap: nowrap; }
-    #powers button { flex: 1 1 0; min-width: 0; height: 56px; padding: 0 4px; font-size: 13px; }
-  }
-  #flash { position: fixed; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
-  .gain { position: fixed; font-size: 56px; font-weight: 800; color: #FFD84A; text-shadow: 0 4px 0 #1A1D23; pointer-events: none; transform: translate(-50%, -50%); animation: gain .9s ease-out forwards; }
-  @keyframes gain { to { opacity: 0; margin-top: -120px; } }
-  .overlay { position: fixed; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 32px; text-align: center; background: rgba(18, 20, 25, .88); }
-  .overlay h1 { margin: 0; font-size: 42px; font-weight: 800; }
-  .overlay p { margin: 0; max-width: 460px; font-size: 18px; line-height: 1.4; color: #D5DBE3; }
-  .overlay button { height: 52px; padding: 0 28px; border: 0; border-radius: 12px; background: #F3F5F7; color: #23272F; font: 800 17px Overpass, system-ui, sans-serif; cursor: pointer; }
-  .overlay button:disabled { background: #3B4250; color: #A9B2BF; cursor: default; }
-  #shop { display: none; flex-direction: column; align-items: center; gap: 10px; }
-  #extras { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
-  #worldTabs { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; max-width: 620px; }
-  #levels #worldTabs button { height: 34px; padding: 0 10px; background: #3B4250; color: #F3F5F7; font-size: 12px; }
-  #levels #worldTabs button.current { background: #FFD84A; color: #23272F; }
-  #levelList { display: grid; grid-template-columns: repeat(2, auto); gap: 10px; }
-  #levelList button { min-width: 150px; height: 44px; padding: 0 10px; font-size: 14px; }
-  .corner { position: fixed; top: 14px; height: 44px; padding: 0 12px; border: 0; border-radius: 10px; background: #3B4250; color: #F3F5F7; font: 600 13px Overpass, system-ui, sans-serif; cursor: pointer; }
-  #cardList { display: flex; flex-direction: column; gap: 12px; max-width: 480px; }
-  #cardList div { padding: 12px 16px; border-radius: 12px; background: #2E343E; text-align: left; font-size: 16px; line-height: 1.35; color: #D5DBE3; }
-  #cardList b { display: block; margin-bottom: 2px; font-size: 18px; color: #FFD84A; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #BDE8C4; font-family: 'Baloo 2', system-ui, sans-serif; color: #24324A; -webkit-user-select: none; user-select: none; }
+  canvas { position: fixed; inset: 0; touch-action: none; }
+  button { font-family: inherit; cursor: pointer; }
+  #top { position: fixed; top: max(10px, env(safe-area-inset-top)); left: 10px; right: 10px; display: flex; align-items: center; justify-content: flex-end; }
+  #left { position: fixed; left: 10px; bottom: max(12px, env(safe-area-inset-bottom)); }
+  .chip { padding: 4px 13px; border-radius: 18px; background: #fff; box-shadow: 0 3px 0 #A9D6B3; font-size: 18px; font-weight: 800; line-height: 1.25; white-space: nowrap; }
+  .tool { height: 36px; padding: 0 12px; border: 0; border-radius: 18px; background: #fff; box-shadow: 0 3px 0 #A9D6B3; color: #24324A; font-size: 15px; font-weight: 800; }
+  #combo { position: fixed; bottom: max(96px, calc(env(safe-area-inset-bottom) + 86px)); left: 0; right: 0; text-align: center; font-size: 42px; font-weight: 800; color: #FFC233; -webkit-text-stroke: 3px #24324A; paint-order: stroke fill; pointer-events: none; opacity: 0; }
+  #combo.pop { animation: pop .35s ease-out; }
+  @keyframes pop { 0% { transform: scale(.5); } 60% { transform: scale(1.3); } 100% { transform: scale(1); } }
+  #hint { position: fixed; bottom: max(58px, calc(env(safe-area-inset-bottom) + 48px)); left: 50%; transform: translateX(-50%); padding: 2px 13px; border-radius: 13px; background: rgba(36, 50, 74, .82); color: #fff; font-size: 15px; font-weight: 600; white-space: nowrap; pointer-events: none; }
+  #count3 { position: fixed; top: 26%; left: 0; right: 0; text-align: center; font-size: 120px; font-weight: 800; color: #fff; -webkit-text-stroke: 5px #24324A; paint-order: stroke fill; pointer-events: none; }
+  .seat { font-size: 13px; font-weight: 800; color: #fff; -webkit-text-stroke: 3px #24324A; paint-order: stroke fill; }
+  .seat.front { font-size: 21px; }
+  .pin { position: fixed; left: 0; top: 0; transform: translate(-50%, -50%); pointer-events: none; }
+  .pill { width: 72px; padding: 1px 7px 6px; box-sizing: border-box; border-radius: 13px; background: #fff; box-shadow: 0 3px 0 rgba(36,50,74,.22); text-align: center; font-size: 15px; font-weight: 800; }
+  .bar { height: 7px; border-radius: 4px; background: #E7ECF3; overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0; }
+  .blocks { display: flex; flex-wrap: wrap; gap: 3px; width: 112px; }
+  .blocks.right { justify-content: flex-end; }
+  .blocks i { min-width: 26px; height: 22px; padding: 0 3px; box-sizing: border-box; border-radius: 7px; color: #fff; font-size: 13px; font-style: normal; font-weight: 800; text-align: center; line-height: 22px; }
+  .blocks i:first-child { outline: 2px solid #fff; }
+  .dot { width: 20px; height: 20px; border: 3px solid #fff; border-radius: 50%; box-shadow: 0 2px 0 rgba(36,50,74,.25); }
+  .screen { position: fixed; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(36, 50, 74, .5); }
+  .card { width: min(88vw, 350px); padding: 24px 20px; box-sizing: border-box; border-radius: 30px; background: #fff; box-shadow: 0 10px 0 #C6D2E3; text-align: center; }
+  .card h1 { margin: 0; font-size: 36px; font-weight: 800; line-height: 1.1; }
+  .card p { margin: 8px 0 18px; font-size: 18px; font-weight: 600; color: #6B778C; line-height: 1.25; }
+  .stars { font-size: 46px; line-height: 1.1; color: #FFC233; letter-spacing: 4px; }
+  .big { width: 100%; height: 58px; border: 0; border-radius: 22px; background: #4CC26E; box-shadow: 0 7px 0 #2F9450; color: #fff; font-size: 24px; font-weight: 800; }
+  .big:active { transform: translateY(5px); box-shadow: 0 2px 0 #2F9450; }
 </style>
 </head>
 <body>
-<div id="coins" class="hud">0</div>
-<div id="countdown" class="hud"></div>
-<div id="progress" class="hud"></div>
-<div id="meter" class="hud"><span>MESS</span><div id="track"><div id="fill"></div></div></div>
-<div id="hint" class="hud"></div>
-<div id="powers" class="hud"><button id="flush"></button><button id="slow"></button><button id="swap"></button><button id="boost"></button><button id="hold"></button><button id="flood"></button><button id="lock"></button></div>
-<div id="flash"></div>
-<button id="newGame" class="corner" style="left:12px">New game</button>
-<button id="levelsButton" class="corner" style="left:104px">Levels</button>
-<div id="end" class="overlay">
-  <h1 id="headline"></h1>
-  <p id="summary"></p>
-  <div id="shop">
-    <button id="build"></button>
-    <div id="extras"><button id="buyFlush"></button><button id="buySlow"></button></div>
-  </div>
-  <button id="next"></button>
-  <button id="endLevels">Choose a level</button>
-</div>
-<div id="levels" class="overlay">
-  <h1>Choose a level</h1>
-  <div id="worldTabs"></div>
-  <div id="levelList"></div>
-  <button id="closeLevels">Back</button>
-</div>
-<div id="card" class="overlay">
-  <h1 id="cardTitle"></h1>
-  <div id="cardList"></div>
-  <button id="cardOk">Got it</button>
-</div>
+<div id="top"><div class="chip" id="left"></div><button class="tool" id="restart">Restart</button></div>
+<div id="combo"></div>
+<div id="hint"></div>
+<div id="count3"></div>
+<div id="labels"></div>
+<div id="start" class="screen"><div class="card"><h1>Rivers</h1><p>Tap a front bus in the lot to call it. Tap a turntable to send the crowd somewhere else. Keep the rivers pouring.</p><button id="play" class="big">Play</button></div></div>
+<div id="end" class="screen" style="display:none"><div class="card"><div id="stars" class="stars"></div><h1 id="endTitle"></h1><p id="endText"></p><button id="again" class="big">Play again</button></div></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="puzzle-rules.js?v=2"></script>
 <script>
-const MAX_PEOPLE = 6000, MAX_STOPS = 5, LEVEL_COUNT = 100;
-const R = 2.6, ROAD_LENGTH = 24, GATE = ROAD_LENGTH - R - 0.1, EXIT_LENGTH = 3;
+const STAGE = {"rivers":[[[2,3],[3,3],[3,3],[2,3],[0,4]],[[0,3],[1,3],[2,3],[1,5],[2,3]],[[3,3],[3,3],[1,4],[0,5]]],"lanes":[[{"id":8,"c":3,"n":4},{"id":5,"c":2,"n":5},{"id":9,"c":3,"n":4},{"id":7,"c":3,"n":4},{"id":0,"c":0,"n":5}],[{"id":1,"c":0,"n":7},{"id":2,"c":1,"n":4},{"id":4,"c":1,"n":4}],[{"id":3,"c":1,"n":4},{"id":6,"c":2,"n":7}]]};
+const UNIT = 10, R = 2.6, GATE = R + 0.5, LANES = 3, ROW = 0.46, GAP = 0.5, WALK = 6.5, RUN = 8.5, RATE = 36, STALL = 3;
+const LOT_X = [-6, 0, 6], LOT_FRONT = -21, LOT_PITCH = 2.6, LOT_SCALE = 0.62, FRONT_SCALE = 0.86, AISLE = -18.3, DRIVE = 34;
 const N = 0, E = 1, S = 2, W = 3;
 const PORT = [[0, -1], [1, 0], [0, 1], [-1, 0]];
-// Test switch: set to false to bring back building and level locks.
-const OPEN_ALL_LEVELS = true;
-
-const bridgeLayout = {
-  name: 'Bridge',
-  discs: [[-3, 0], [5.4, 0]],
-  sources: [{ disc: 0, port: N, colour: 0 }, { disc: 0, port: S, colour: 1 }, { disc: 1, port: E, colour: 2 }],
-  stops: [{ disc: 0, port: W }, { disc: 1, port: N }, { disc: 1, port: S }],
-  links: [{ a: 0, aPort: E, b: 1, bPort: W }],
-  landmarks: { school: [-0.7, -6.5], offices: [-0.7, 6.5], stadium: [-10, -6.4] },
-  look: [-1.5, 0],
-  view: [23, 22]
-};
-
-function rotateLayout(layout, name) {
-  const spin = ([x, z]) => [-z, x];
-  return {
-    name,
-    discs: layout.discs.map(spin),
-    sources: layout.sources.map((s) => ({ ...s, port: (s.port + 1) % 4 })),
-    stops: layout.stops.map((s) => ({ ...s, port: (s.port + 1) % 4 })),
-    links: layout.links.map((l) => ({ ...l, aPort: (l.aPort + 1) % 4, bPort: (l.bPort + 1) % 4 })),
-    landmarks: Object.fromEntries(Object.entries(layout.landmarks).map(([id, spot]) => [id, spin(spot)])),
-    look: spin(layout.look),
-    view: [layout.view[1] + 1, layout.view[0] + 4]
-  };
-}
-
-const branchesLayout = {
-  name: 'Branches',
-  discs: [[-7, 0], [2, 0], [2, -8.4], [2, 8.4]],
-  sources: [{ disc: 0, port: N, colour: 0 }, { disc: 0, port: S, colour: 1 }, { disc: 1, port: E, colour: 2 }],
-  stops: [{ disc: 0, port: W }, { disc: 2, port: W }, { disc: 2, port: E }, { disc: 3, port: W }, { disc: 3, port: E }],
-  links: [{ a: 0, aPort: E, b: 1, bPort: W }, { a: 1, aPort: N, b: 2, bPort: S }, { a: 1, aPort: S, b: 3, bPort: N }],
-  landmarks: { school: [7, -4.5], offices: [7, 4.5], stadium: [-13, -7] },
-  look: [-2.5, 0],
-  view: [31, 31]
-};
-
-const LAYOUTS = { bridge: bridgeLayout, tower: rotateLayout(bridgeLayout, 'Tower'), branches: branchesLayout, branchesTall: rotateLayout(branchesLayout, 'Branches') };
-LAYOUTS.tower.view = [20, 27];
-LAYOUTS.branchesTall.view = [26, 32];
-const PORTRAIT = innerHeight > innerWidth;
-const PORTRAIT_LAYOUTS = { bridge: 'tower', branches: 'branchesTall' };
-const layoutFor = (key) => LAYOUTS[PORTRAIT ? PORTRAIT_LAYOUTS[key] || key : key];
-
+const COLOURS = [
+  { body: 0x3F86F5, dark: 0x2A5FB8, css: '#3F86F5' },
+  { body: 0xFF8B2B, dark: 0xC8611A, css: '#FF8B2B' },
+  { body: 0x39B97A, dark: 0x237F52, css: '#39B97A' },
+  { body: 0xA05CFF, dark: 0x6F38BF, css: '#A05CFF' }
+];
+const DISCS = [[0, -6.4], [0, 6.4]];
+const RIVERS = [{ disc: 0, port: E }, { disc: 0, port: W }, { disc: 1, port: S }];
+const STOPS = [{ disc: 0, port: N }, { disc: 1, port: E }, { disc: 1, port: W }];
+const TOTAL = STAGE.rivers.flat().reduce((sum, block) => sum + block[1] * UNIT, 0);
+const CFG = { bridge: true };
 const otherEnd = (local) => (local < 2 ? 1 - local : 5 - local);
 
-function prepareLayout(layout) {
-  layout.stopSpots = layout.stops.map((s) => {
-    const [dx, dz] = PORT[s.port], [x, z] = layout.discs[s.disc];
-    return { x: x + dx * R, z: z + dz * R, dx, dz };
-  });
-  layout.linkPaths = layout.links.map((l) => {
-    const [dx, dz] = PORT[l.aPort], [ax, az] = layout.discs[l.a], [bx, bz] = layout.discs[l.b];
-    return { ...l, dx, dz, x: ax + dx * R, z: az + dz * R, length: Math.abs(bx - ax) + Math.abs(bz - az) - 2 * R };
-  });
-  layout.ports = layout.discs.map(() => [null, null, null, null]);
-  layout.stops.forEach((s, stop) => { layout.ports[s.disc][s.port] = { stop }; });
-  layout.links.forEach((l, link) => {
-    layout.ports[l.a][l.aPort] = { link, forward: true };
-    layout.ports[l.b][l.bPort] = { link, forward: false };
-  });
-
-  layout.reachable = layout.stops.map(() => new Set());
-  for (let n = 0; n < 1 << layout.discs.length; n++) {
-    const ks = layout.discs.map((_, d) => (n >> d) & 1);
-    layout.sources.forEach((source) => {
-      const stop = routeOf(layout, source, ks);
-      if (stop !== null) layout.reachable[stop].add(source.colour);
-    });
-  }
-}
-
-function routeOf(layout, source, ks) {
-  let disc = source.disc, port = source.port;
-  for (let guard = 0; guard < 10; guard++) {
-    const local = ((port - ks[disc]) % 4 + 4) % 4;
-    const out = otherEnd(local);
-    const target = layout.ports[disc][(out + ks[disc]) % 4];
-    if (!target) return null;
-    if (target.stop !== undefined) return target.stop;
-    const link = layout.links[target.link];
-    disc = target.forward ? link.b : link.a;
-    port = target.forward ? link.bPort : link.aPort;
-  }
-  return null;
-}
-
-Object.values(LAYOUTS).forEach(prepareLayout);
-
-const WORLDS = [
-  { name: 'First Streets', layout: 'bridge', features: [['ambulance', 6]],
-    theme: { ground: 0x9CCB6B, road: 0x454A53, blocks: [0xF2D6A2, 0xE8B08C, 0xD9C5A0], plate: 0xB7BEC9, tree: 0x4E9A4A, trees: 0.9, sky: 0.65, sun: 0.6, sunColour: 0xFFF1D0, tall: 0.5 } },
-  { name: 'Green City', layout: 'bridge', features: [['three', 0]],
-    theme: { ground: 0x6FBF73, road: 0x3A4048, blocks: [0xC9E7C2, 0x9AD3A0, 0xE4F2D8], plate: 0xA8D8B0, tree: 0x2F8F4E, trees: 1, sky: 0.65, sun: 0.6, sunColour: 0xF2FFD8, tall: 0.7, particle: { colours: [0x7CCB5B, 0xB8DB5A], speed: 2.2, size: 0.12 } } },
-  { name: 'Two-Tone Town', layout: 'tower', features: [['mixed', 0]],
-    theme: { ground: 0xE9DCC9, road: 0x5A5560, blocks: [0xF29CB7, 0x8ED0E8, 0xF7D57E], plate: 0xFFFFFF, tree: 0xE27FA8, trees: 0.45, sky: 0.65, sun: 0.6, sunColour: 0xFFF4F0, tall: 0.8 } },
-  { name: 'Rail Yard', layout: 'tower', features: [['train', 0]],
-    theme: { ground: 0x8B7355, road: 0x3B342C, blocks: [0x7C5C48, 0x9C7A58, 0x5E4A3C], plate: 0xB08A5E, tree: 0x6A6A3A, trees: 0.15, sky: 0.8, sun: 0.85, sunColour: 0xFFD09A, tall: 1, particle: { colours: [0xC8A878, 0xA88860], speed: 1.2, size: 0.09 } } },
-  { name: 'Night Shift', layout: 'branches', features: [['night', 0], ['ambulance', 4]],
-    theme: { ground: 0x14172A, road: 0x0D0F18, blocks: [0x2B2F55, 0x3D2F6E, 0x2A4A6E], plate: 0x4A5580, tree: 0x1E3A4E, trees: 0.2, sky: 0.8, sun: 0.75, sunColour: 0xB8C8FF, tall: 1.05 } },
-  { name: 'Roadworks', layout: 'branches', features: [['roadworks', 0], ['rogue', 5]],
-    theme: { ground: 0xC9A24A, road: 0x4A4438, blocks: [0xE0C070, 0x8D8A80, 0xB8B0A0], plate: 0xF0B429, tree: 0x8A7A30, trees: 0.1, sky: 0.55, sun: 0.55, sunColour: 0xFFE8B0, tall: 1.1, particle: { colours: [0xD8C080], speed: 1, size: 0.08 } } },
-  { name: 'Rush Hour', layout: 'rotate', features: [['ambulance', 0]], rush: true,
-    theme: { ground: 0x5B3A53, road: 0x2A2030, blocks: [0xE08A5C, 0xC9586C, 0x6B4B8A], plate: 0xFF9A5A, tree: 0x8A3A5A, trees: 0.08, sky: 0.7, sun: 0.95, sunColour: 0xFF9A5A, tall: 1.3 } },
-  { name: 'Double Trouble', layout: 'rotate', mixes: [['three', 'train'], ['mixed', 'night'], ['train', 'night'], ['three', 'rogue'], ['mixed', 'train'], ['night', 'rogue'], ['three', 'night'], ['mixed', 'rogue'], ['train', 'rogue'], ['three', 'mixed']],
-    theme: { ground: 0x2E3C6E, road: 0x171E3A, blocks: [0x6C4FD8, 0x2FB8A8, 0x453A9E], plate: 0x5FE0D0, tree: 0x2F6A9A, trees: 0.08, sky: 0.8, sun: 0.8, sunColour: 0xC8D0FF, tall: 1.45 } },
-  { name: 'Chaos', layout: 'rotate', mixes: [['three', 'train', 'night'], ['mixed', 'night', 'rogue'], ['three', 'mixed', 'train'], ['train', 'night', 'rogue'], ['three', 'night', 'rogue'], ['mixed', 'train', 'rogue'], ['three', 'mixed', 'night'], ['three', 'train', 'rogue'], ['mixed', 'train', 'night'], ['three', 'mixed', 'rogue']],
-    theme: { ground: 0x3A1F22, road: 0x1A0F11, blocks: [0x6E2A2A, 0x3E2A2A, 0x8C3A2A], plate: 0xB04A3A, tree: 0x4A2020, trees: 0.05, sky: 0.55, sun: 0.75, sunColour: 0xFF6A50, tall: 1.6, particle: { colours: [0x9FC8FF, 0xC8DCFF], speed: 26, size: 0.07, tall: true } } },
-  { name: 'Grand Festival', layout: 'branches', features: [['three', 0], ['mixed', 0], ['train', 0], ['roadworks', 0]], festival: true,
-    theme: { ground: 0x2A1C4E, road: 0x140E28, blocks: [0xFF5BA0, 0xFFD84A, 0x47D1E0], plate: 0xFFD84A, tree: 0xFF5BA0, trees: 0.1, sky: 0.9, sun: 0.85, sunColour: 0xFFE0F0, tall: 1.7, particle: { colours: [0xFF5BA0, 0xFFD84A, 0x47D1E0, 0x8CE36A], speed: 4, size: 0.14 } } }
-];
-
-const FEATURE_POWERS = { train: 'hold', rogue: 'lock', night: 'flood', mixed: 'boost', three: 'swap' };
-const STEP_MODES = ['fill', 'fill', 'fill', 'fill', 'strikes', 'clock', 'fill', 'strikes', 'clock', 'boss'];
-const FIRST_CLOCK_LEVEL = 17;
-
-const CARDS = {
-  basics: ['How to play', 'Tap a turntable to switch where the rivers go. Send each colour to the bus of the same colour.'],
-  twoDiscs: ['A second turntable', 'The right turntable chooses which stop the crossing river reaches. Tap it to switch.'],
-  mess: ['Watch the Mess meter', 'Wrong colours pile up at the stop. Fill that stop\'s bus to clear its pile.'],
-  flush: ['Power: Flush', 'Tap Flush to clear all the mess at once. You only get a couple each level.'],
-  ambulance: ['Ambulances', 'A road flashes red, then an ambulance blocks it. Send your river somewhere else.'],
-  slow: ['Power: Slow', 'Slows the rivers for a few seconds so you can think.'],
-  strikes: ['Strikes', 'Getting hit by a hazard is a strike. Three strikes and you lose the level.'],
-  boss: ['Boss level', 'The last of the crowd goes on one giant bus. Point every river at it.'],
-  three: ['Green river', 'A third river joins. It can reach every stop except the far one.'],
-  swap: ['Power: Swap', 'Swaps the colours of the buses waiting at your stops.'],
-  clock: ['Beat the clock', 'Get the whole crowd on board before the timer runs out.'],
-  tower: ['New road: the Tower', 'The roads have changed shape. Same rules.'],
-  mixed: ['Two-tone buses', 'They need both blue and orange, so switch rivers halfway through.'],
-  boost: ['Power: Rush', 'Everyone runs faster for a few seconds.'],
-  train: ['Trains', 'The bell warns you. Anyone on the bridge when the train passes goes flying.'],
-  hold: ['Power: Hold bridge', 'Stops the river before the bridge so nobody is on it when the train comes.'],
-  branches: ['New road: Branches', 'Four turntables. Rivers now split twice, so plan two turns ahead.'],
-  night: ['Night', 'You can only see the buses in the flashes. The rivers glow.'],
-  flood: ['Power: Floodlight', 'Lights up the whole city for a few seconds.'],
-  roadworks: ['Roadworks', 'A turntable glows yellow, then locks. Set your route first: locked turntables pay double.'],
-  rogue: ['Rogue turntables', 'Purple means a turntable is about to flip itself.'],
-  lock: ['Power: Lock', 'Stops turntables flipping or locking for a few seconds.']
-};
-
-const POWER_TIME = { slow: 4, boost: 5, hold: 3, flood: 5, lock: 6 };
-const POWER_LABELS = { flush: 'Flush mess', slow: 'Slow rivers', swap: 'Swap stops', boost: 'Rush boarding', hold: 'Hold bridge', flood: 'Floodlight', lock: 'Lock turntables' };
-
-function makeLevels() {
-  const seen = new Set();
-  return Array.from({ length: LEVEL_COUNT }, (_, index) => {
-    const w = Math.floor(index / 10), step = index % 10, world = WORLDS[w], boss = step === 9;
-    const progress = index / (LEVEL_COUNT - 1);
-    const features = world.mixes ? world.mixes[step] : world.features.filter(([, from]) => step >= from).map(([name]) => name);
-    const has = (feature) => features.includes(feature);
-    const layoutKey = world.layout === 'rotate' ? ['bridge', 'tower', 'branches'][step % 3] : world.layout;
-    const three = has('three');
-
-    const featurePowers = features.map((f) => FEATURE_POWERS[f]).filter(Boolean);
-    const powers = [...new Set([...(index >= 4 ? ['flush'] : []), ...featurePowers, ...(index >= 7 ? ['slow'] : [])])].slice(0, 3);
-
-    const level = {
-      world: w,
-      layoutKey,
-      singleDisc: index < 2,
-      speed: 0.72 + 0.62 * progress,
-      goal: 6 + Math.round(14 * progress) + Math.round(step * 0.3),
-      rate: (30 + 20 * progress) * (world.festival ? 2 : 1),
-      colours: three ? 3 : 2,
-      mixed: has('mixed'),
-      mixedChance: w === 2 ? 0.4 : 0.3,
-      ambulance: has('ambulance'),
-      roadworks: has('roadworks'),
-      train: has('train'),
-      night: has('night'),
-      rogue: has('rogue'),
-      boss,
-      bossSize: world.festival ? 3 : 2,
-      calm: step < 7,
-      powers
-    };
-
-    level.seats = Math.round((135 - 25 * progress) * (world.festival ? 2 : 1) / 2) * 2;
-    level.maxMess = Math.round(level.goal * level.seats * (0.8 - 0.62 * Math.min(1, progress * 1.25)));
-    const hasStrikes = level.ambulance || level.train;
-    let mode = boss ? 'boss' : world.rush ? 'clock' : STEP_MODES[step];
-    if (mode === 'clock' && index < FIRST_CLOCK_LEVEL) mode = 'fill';
-    if (mode === 'strikes' && !hasStrikes) mode = 'fill';
-
-    let goalText = 'Get the whole crowd on board.';
-    if (mode === 'boss') goalText = 'Boss level: the last of the crowd takes the giant bus!';
-    if (mode === 'strikes') {
-      level.maxStrikes = 3;
-      goalText = 'Three strikes and you lose.';
-    }
-    if (mode === 'clock') {
-      level.timeLimit = Math.round((level.goal * level.seats / level.colours / level.rate) * 1.9 + 12);
-      goalText = `Clear the crowd in ${level.timeLimit} seconds.`;
-    }
-    level.intro = index === 0 ? 'Tap the turntable when a bus wants the other colour' : goalText;
-
-    const fresh = [];
-    const learn = (key) => { if (!seen.has(key)) { seen.add(key); fresh.push(key); } };
-    if (index === 0) learn('basics');
-    if (index === 2) learn('twoDiscs');
-    if (index === 3) learn('mess');
-    if (layoutKey !== 'bridge') learn(layoutKey);
-    features.forEach(learn);
-    powers.forEach(learn);
-    if (mode !== 'fill') learn(mode);
-    level.cards = fresh.map((key) => CARDS[key]).filter(Boolean);
-    level.worldStart = step === 0;
-    return level;
-  });
-}
-
-const LEVELS = makeLevels();
-const BUILDINGS = [
-  { id: 'school', name: 'School', price: 20000, afterLevel: 9, pitch: 'Pays 25% more, but the bell makes the blue river surge.' },
-  { id: 'offices', name: 'Offices', price: 60000, afterLevel: 19, pitch: 'Pays 50% more, but a morning rush makes the orange river surge.' },
-  { id: 'stadium', name: 'Stadium', price: 120000, afterLevel: 29, pitch: 'Doubles your coins, but full time makes both rivers surge.' }
-];
-const SURGE_SPEED = 1.7, SCHOOL_GAP = 15, SCHOOL_SURGE = 3, OFFICE_SURGE = 8, STADIUM_SURGE = 5, EXTRA_PRICE = 1000, MAX_EXTRA = 3, SAVE_KEY = 'rivers-save';
-const AMBULANCE_WARNING = 1.5, AMBULANCE_STAY = 2.5, AMBULANCE_GAP = 6;
-const AMBULANCE_STRIKE_HITS = 40, TRAIN_STRIKE_HITS = 25;
-const LOCK_WARNING = 2, LOCK_TIME = 3, LOCK_GAP = 8;
-const PLATE_WARN = 0xFFD84A, PLATE_LOCKED = 0xFF5A4F, PLATE_ROGUE = 0xA05CFF, PLATE_ASLEEP = 0x70757D;
-const SLOW_FACTOR = 0.45, POWER_CHARGES = 2;
-const TRAIN_WARNING = 2, TRAIN_GAP = 9, TRAIN_SPEED = 40, ROGUE_GAP = 6, ROGUE_WARNING = 1;
-const PALETTE = [
-  { hex: 0x3B7BFF, side: 0x163A8C },
-  { hex: 0xFF8A1F, side: 0xA94F05 },
-  { hex: 0x2FBF71, side: 0x1B7A46 }
-];
-
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(30, 1, 1, 220);
+scene.background = new THREE.Color(0xBDE8C4);
+const camera = new THREE.PerspectiveCamera(28, 1, 1, 260);
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 document.body.prepend(renderer.domElement);
-
-const skyLight = new THREE.HemisphereLight(0xffffff, 0x445066, 0.8);
-scene.add(skyLight);
-const sun = new THREE.DirectionalLight(0xffffff, 0.75);
-sun.position.set(-7, 18, 8);
+scene.add(new THREE.HemisphereLight(0xFFFFFF, 0xA8D8B4, 0.5));
+const sun = new THREE.DirectionalLight(0xFFF3DE, 0.5);
+sun.position.set(-7, 24, 9);
 sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
-Object.assign(sun.shadow.camera, { left: -20, right: 20, top: 20, bottom: -20, far: 60 });
+sun.shadow.radius = 6;
+Object.assign(sun.shadow.camera, { left: -20, right: 20, top: 26, bottom: -26, far: 80 });
 scene.add(sun);
 
-const standard = (color) => new THREE.MeshStandardMaterial({ color, roughness: 0.8 });
-const groundMaterial = standard(0x2B3039);
-const ground = new THREE.Mesh(new THREE.BoxGeometry(120, 0.02, 120), groundMaterial);
-ground.position.y = -0.02;
-ground.receiveShadow = true;
-scene.add(ground);
-
-const roadMaterial = standard(0x171A20);
-const roadGroup = new THREE.Group();
-scene.add(roadGroup);
-const railMaterial = standard(0x5A4632);
-const rail = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.03, 70), railMaterial);
-rail.position.y = 0.02;
-rail.receiveShadow = true;
-scene.add(rail);
-
-const blockMaterials = [standard(0x59616F), standard(0x687284), standard(0x4A5362)];
-const blockGeometry = new THREE.BoxGeometry(1.25, 1, 1.25);
-const citySlots = [];
-for (let x = -23.8; x <= 20.5; x += 1.7) {
-  for (let z = -18.4; z <= 18.4; z += 1.7) {
-    const seed = Math.abs(Math.sin(x * 12.9 + z * 78.2) * 43758.5);
-    const mesh = new THREE.Mesh(blockGeometry, blockMaterials[Math.floor(seed * 7) % 3]);
-    mesh.position.set(x, 0.5, z);
-    mesh.castShadow = mesh.receiveShadow = true;
-    scene.add(mesh);
-    citySlots.push({ mesh, x, z, order: seed % 1, shape: (seed * 13) % 1 });
-  }
+const paint = (color, roughness = 0.6) => new THREE.MeshStandardMaterial({ color, roughness });
+function roundedBox(w, h, d, r) {
+  const x = w / 2 - r, z = d / 2 - r;
+  const shape = new THREE.Shape();
+  shape.moveTo(-x, -z - r);
+  shape.lineTo(x, -z - r);
+  shape.absarc(x, -z, r, -Math.PI / 2, 0);
+  shape.lineTo(x + r, z);
+  shape.absarc(x, z, r, 0, Math.PI / 2);
+  shape.lineTo(-x, z + r);
+  shape.absarc(-x, z, r, Math.PI / 2, Math.PI);
+  shape.lineTo(-x - r, -z);
+  shape.absarc(-x, -z, r, Math.PI, Math.PI * 1.5);
+  const bevel = Math.min(r * 0.6, h * 0.3);
+  const geometry = new THREE.ExtrudeGeometry(shape, { depth: h - bevel * 2, bevelEnabled: true, bevelThickness: bevel, bevelSize: bevel * 0.5, bevelSegments: 5, curveSegments: 10 });
+  geometry.rotateX(-Math.PI / 2);
+  geometry.translate(0, bevel - h / 2, 0);
+  return geometry;
 }
+function part(geometry, material, x, y, z, shadow = true) {
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.position.set(x, y, z);
+  mesh.castShadow = shadow;
+  mesh.receiveShadow = true;
+  return mesh;
+}
+scene.add(part(new THREE.BoxGeometry(140, 0.1, 140), paint(0xBDE8C4, 0.95), 0, -0.05, 0, false));
+const roadPaint = paint(0x5C6B82, 0.85), kerb = paint(0xF5F1E6, 0.8);
+function addRoad(cx, cz, w, d) {
+  scene.add(part(new THREE.BoxGeometry(w + 0.34, 0.08, d + 0.34), kerb, cx, 0.04, cz, false));
+  scene.add(part(new THREE.BoxGeometry(w, 0.1, d), roadPaint, cx, 0.06, cz, false));
+}
+addRoad(0, 0, 2.5, 7.2);
+addRoad(24, -6.4, 42, 2.5);
+addRoad(-24, -6.4, 42, 2.5);
+addRoad(0, 28, 2.5, 38);
+addRoad(0, -14, 2.5, 9);
+addRoad(8, 6.4, 9.5, 2.5);
+addRoad(-8, 6.4, 9.5, 2.5);
+addRoad(0, AISLE, 36, 2.5);
+scene.add(part(new THREE.BoxGeometry(22, 0.06, 15), paint(0xD9DFD6, 0.9), 0, 0.03, -27.2, false));
+[-3, 3].forEach((x) => scene.add(part(new THREE.BoxGeometry(0.14, 0.05, 15), paint(0xFFFFFF, 0.8), x, 0.08, -27.2, false)));
 
-const treeMaterial = standard(0x4E9A4A);
-const trees = new THREE.InstancedMesh(new THREE.ConeGeometry(0.55, 1.5, 7), treeMaterial, citySlots.length);
-trees.castShadow = true;
-trees.frustumCulled = false;
-scene.add(trees);
-
-const PARTICLE_COUNT = 320;
-const particleMaterial = new THREE.MeshBasicMaterial();
-const particles = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), particleMaterial, PARTICLE_COUNT);
-particles.frustumCulled = false;
-particles.visible = false;
-scene.add(particles);
-const motes = Array.from({ length: PARTICLE_COUNT }, () => ({ x: (Math.random() - 0.5) * 44, y: Math.random() * 16, z: (Math.random() - 0.5) * 36, drift: Math.random() * 6.28 }));
-motes.forEach((_, i) => {
-  particles.setMatrixAt(i, new THREE.Matrix4());
-  particles.setColorAt(i, new THREE.Color(0xffffff));
-});
-
-const plateGeometry = new THREE.CylinderGeometry(2.95, 2.95, 0.12, 64);
-const arcMaterial = new THREE.MeshStandardMaterial({ color: 0x171A20, roughness: 0.8, side: THREE.DoubleSide });
-const allDiscs = [0, 1, 2, 3].map(() => {
-  const group = new THREE.Group();
-  scene.add(group);
-  const plate = new THREE.Mesh(plateGeometry, standard(0x687284));
-  plate.position.y = 0.06;
-  plate.receiveShadow = true;
-  group.add(plate);
+const arcPaint = new THREE.MeshStandardMaterial({ color: 0x5C6B82, roughness: 0.85, side: THREE.DoubleSide });
+const discs = DISCS.map(([x, z]) => {
+  scene.add(part(new THREE.CylinderGeometry(3.32, 3.42, 0.3, 72), kerb, x, 0.15, z));
+  const spinner = new THREE.Group();
+  spinner.position.set(x, 0, z);
+  scene.add(spinner);
+  spinner.add(part(new THREE.CylinderGeometry(3.05, 3.05, 0.16, 72), paint(0xFFFFFF, 0.5), 0, 0.36, 0));
   [[R, -R, Math.PI], [-R, R, 0]].forEach(([ax, az, start]) => {
-    const arc = new THREE.Mesh(new THREE.RingGeometry(R - 1.1, R + 1.1, 40, 1, start, Math.PI / 2), arcMaterial);
+    const arc = new THREE.Mesh(new THREE.RingGeometry(R - 1.15, R + 1.15, 48, 1, start, Math.PI / 2), arcPaint);
     arc.rotation.x = -Math.PI / 2;
-    arc.position.set(ax, 0.125, az);
-    group.add(arc);
+    arc.position.set(ax, 0.45, az);
+    spinner.add(arc);
   });
-  return { x: 0, z: 0, group, plate, k: 0, target: 0, angle: 0, warn: 0, locked: 0, flip: 0 };
+  spinner.add(part(new THREE.CylinderGeometry(0.42, 0.5, 0.26, 28), paint(0xFFC233, 0.4), 0, 0.56, 0));
+  return { x, z, spinner, k: 0, spin: 0, vel: 0 };
 });
-let discs = allDiscs.slice(0, 2);
 
-const dangerZone = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.03, EXIT_LENGTH), new THREE.MeshBasicMaterial({ color: 0xFF2D20, transparent: true }));
-dangerZone.visible = false;
-scene.add(dangerZone);
-
-function makeGroup(parts) {
+const leaf = [paint(0x5BBF6A, 0.8), paint(0x46A95A, 0.8)], trunk = paint(0xB0805A, 0.85);
+function tree(x, z, s) {
   const group = new THREE.Group();
-  parts.forEach(([w, h, d, x, y, z, color]) => {
-    const part = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), standard(color));
-    part.position.set(x, y, z);
-    part.castShadow = true;
-    group.add(part);
-  });
-  group.visible = false;
+  group.add(part(new THREE.CylinderGeometry(0.16, 0.22, 0.8, 10), trunk, 0, 0.4, 0));
+  group.add(part(new THREE.IcosahedronGeometry(0.8, 2), leaf[Math.floor(Math.abs(x * 3)) % 2], 0, 1.3, 0));
+  group.position.set(x, 0, z);
+  group.scale.setScalar(s);
   scene.add(group);
-  return group;
 }
+[[-5, -13, 1.1], [-7.5, -15.5, 1.3], [5.2, -12.6, 1], [7.4, -15.8, 1.2], [-5.5, 1.6, 1.2], [-8.4, 0.2, 1], [6, 1.2, 1.1], [8.6, 0.4, 1.2], [-5.6, 13.6, 1.2], [-8.4, 15, 1], [5.4, 14, 1.1], [8.4, 15.2, 1.2]].forEach(([x, z, s]) => tree(x, z, s));
 
-const ambulanceMesh = makeGroup([[1.3, 0.8, 2, 0, 0.5, 0, 0xF3F5F7], [1.34, 0.18, 2.04, 0, 0.5, 0, 0xFF2D20], [0.5, 0.16, 0.3, 0, 0.98, 0, 0x4AA3FF]]);
-const trainMesh = makeGroup([[1.4, 1.1, 10, 0, 0.6, 0, 0xFFD84A], [1.44, 0.3, 10.04, 0, 0.75, 0, 0x23272F]]);
+const GEO = STOPS.map((s) => {
+  const [dx, dz] = PORT[s.port], [x, z] = DISCS[s.disc];
+  return { dx, dz, x, z, doorX: x + dx * (R + 2.15), doorZ: z + dz * (R + 2.15), parkX: x + dx * (R + 3.3), parkZ: z + dz * (R + 3.3) };
+});
 
-const LANDMARK_SIZE = { school: [1.2, 1.6], offices: [1.2, 1.5], stadium: [3, 3] };
-const LANDMARK_PARTS = {
-  school: [[2.2, 1.3, 2.4, 0, 0.65, 0, 0xE9EEF5], [2.4, 0.35, 2.7, 0, 1.45, 0, 0xB5483F]],
-  offices: [[2.2, 3.4, 2.2, 0, 1.7, 0, 0xE9EEF5], [2.3, 0.3, 2.3, 0, 1.2, 0, 0xFF8A1F], [2.3, 0.3, 2.3, 0, 2.4, 0, 0xFF8A1F]]
-};
-const landmarkMeshes = {};
-
-function placeLandmark(id, dropIn) {
-  let group;
-  if (id === 'stadium') {
-    group = new THREE.Group();
-    const bowl = new THREE.Mesh(new THREE.CylinderGeometry(2.8, 2.5, 1.2, 40), standard(0xE9EEF5));
-    bowl.position.y = 0.6;
-    bowl.castShadow = true;
-    const pitch = new THREE.Mesh(new THREE.CylinderGeometry(1.9, 1.9, 0.04, 40), standard(0x3FA34D));
-    pitch.position.y = 1.22;
-    group.add(bowl, pitch);
-    scene.add(group);
-  } else {
-    group = makeGroup(LANDMARK_PARTS[id]);
-    group.visible = true;
-  }
-  landmarkMeshes[id] = group;
-  const [x, z] = layout.landmarks[id];
-  group.position.set(x, dropIn ? 12 : 0, z);
-  refreshCity();
-}
-
-const personWidth = PORTRAIT ? 0.27 : 0.17;
-const people = new THREE.InstancedMesh(new THREE.BoxGeometry(personWidth, 0.3, personWidth), new THREE.MeshStandardMaterial({ roughness: 0.7 }), MAX_PEOPLE);
-const dayMaterial = people.material;
-const glowMaterial = new THREE.MeshBasicMaterial();
-people.castShadow = true;
-people.frustumCulled = false;
-scene.add(people);
-
-const allPeople = [];
-for (let i = 0; i < MAX_PEOPLE; i++) {
-  allPeople.push({ src: 0, lat: (Math.random() * 2 - 1) * 0.92, speed: 6.5 + Math.random() * 3.5, phase: 0, s: 0, stopped: false, u: 0, disc: 0, side: 0, stop: 0, link: 0, forward: true, px: 0, pz: 0, fx: 0, fy: 0, fz: 0, vx: 0, vy: 0, vz: 0, bob: Math.random() * 6.28 });
-  people.setMatrixAt(i, new THREE.Matrix4());
-  people.setColorAt(i, new THREE.Color(PALETTE[0].hex));
-}
-let crowd = allPeople;
-
-const bodies = PALETTE.map((p) => standard(p.hex));
-const sides = PALETTE.map((p) => standard(p.side));
-const glass = standard(0xDDE6F2);
-
-function makeBus(colour, stop) {
-  const group = new THREE.Group();
-  // Colour -1 is a two-tone bus that needs both the blue and orange rivers.
-  const lower = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.26, 3), colour < 0 ? bodies[1] : sides[colour]);
-  lower.position.y = 0.2;
-  const upper = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.86, 2.9), colour < 0 ? bodies[0] : bodies[colour]);
-  upper.position.y = 0.76;
-  const windows = new THREE.Mesh(new THREE.BoxGeometry(1.64, 0.24, 2.5), glass);
-  windows.position.y = 0.88;
-  lower.castShadow = upper.castShadow = true;
-  group.add(lower, upper, windows);
-  if (layout.stopSpots[stop].dz) group.rotation.y = Math.PI / 2;
-  scene.add(group);
-  return group;
-}
-
-const coinGeometry = new THREE.CylinderGeometry(0.16, 0.16, 0.05, 12);
-const coinMaterial = standard(0xFFD84A);
-
-let layout = LAYOUTS.bridge, theme = WORLDS[0].theme;
-let waiting = [0, 0, 0], piled = [0, 0, 0], walking = [0, 0, 0], countdownLeft = 0, startingCrowd = 0, winning = false, plannedBuses = [];
-const reserved = new Array(MAX_STOPS).fill(null), pileAt = Array.from({ length: MAX_STOPS }, () => [0, 0, 0]);
-const totalWaiting = () => waiting[0] + waiting[1] + waiting[2];
-let coins = 0, streak = 0, shake = 0, audio, paused = false;
-let level = 0, filled = 0, started = false, over = false, won = false, runId = 0;
-let bits = [];
-const stuck = new Array(MAX_STOPS).fill(0);
-const timers = { slow: 0, boost: 0, hold: 0, flood: 0, lock: 0 };
-let strikes = 0, timeLeft = 0, train = null, trainClock = 0, rogueClock = 0;
-const totalMess = () => stuck.reduce((a, b) => a + b, 0);
-const buses = new Array(MAX_STOPS).fill(null), previews = new Array(MAX_STOPS).fill(null);
-const flyers = [];
-let ambulance = null, ambulanceClock = 0, lockClock = 0;
-const charges = {};
-let seenCards = {}, beaten = 0, owned = {}, extra = { flush: 0, slow: 0 }, surge = [0, 0, 0], schoolClock = 0, officesFired = false, stadiumFired = false, announceLeft = 0;
-
-function save(levelToStore = level) {
-  try {
-    localStorage.setItem(SAVE_KEY, JSON.stringify({ coins, level: levelToStore, owned, extra, beaten, seenCards }));
-  } catch (e) {}
-}
-
-function loadSave() {
-  try {
-    const data = JSON.parse(localStorage.getItem(SAVE_KEY));
-    if (!data) return;
-    coins = data.coins;
-    level = Math.min(data.level, LEVEL_COUNT - 1);
-    owned = data.owned;
-    extra = { flush: Math.min(MAX_EXTRA, data.extra.flush || 0), slow: Math.min(MAX_EXTRA, data.extra.slow || 0) };
-    beaten = data.beaten || data.level || 0;
-    seenCards = data.seenCards || {};
-  } catch (e) {}
-}
-
-function coinMultiplier() {
-  return (1 + (owned.school ? 0.25 : 0) + (owned.offices ? 0.5 : 0)) * (owned.stadium ? 2 : 1);
-}
-
-function announce(text) {
-  document.getElementById('hint').textContent = text;
-  announceLeft = 2;
-}
-
-const localSide = (disc, world) => ((world - disc.k) % 4 + 4) % 4;
-const activeStops = () => (LEVELS[level].singleDisc ? [0, 2] : layout.stops.map((_, i) => i));
-
-// Every person is planned a seat up front, so buses fill exactly and nobody is left over.
-function planBuses(current) {
-  const plan = [];
-  const regular = current.boss ? current.goal - 1 : current.goal;
-  for (let i = 0; i < regular; i++) {
-    const twoTone = current.mixed && Math.random() < current.mixedChance;
-    plan.push({ colour: twoTone ? -1 : i % current.colours, seats: current.seats, size: 1 });
-  }
-  for (let i = plan.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [plan[i], plan[j]] = [plan[j], plan[i]];
-  }
-  if (current.boss) {
-    const share = Math.floor(current.seats * current.bossSize / current.colours);
-    plan.push({ colour: -1, any: true, seats: share * current.colours, size: current.bossSize });
-  }
-  return plan;
-}
-
-function crowdFromPlan(plan, colours) {
-  const counts = [0, 0, 0];
-  plan.forEach((bus) => {
-    if (bus.any) for (let c = 0; c < colours; c++) counts[c] += bus.seats / colours;
-    else if (bus.colour < 0) { counts[0] += bus.seats / 2; counts[1] += bus.seats / 2; }
-    else counts[bus.colour] += bus.seats;
-  });
-  return counts;
-}
-
-function busFits(bus, stop) {
-  const reach = layout.reachable[stop], colours = LEVELS[level].colours;
-  if (bus.any) return [0, 1, 2].slice(0, colours).every((c) => reach.has(c));
-  return bus.colour < 0 ? reach.has(0) && reach.has(1) : reach.has(bus.colour);
-}
-
-function takeBus(stop, preferred) {
-  const pile = pileAt[stop];
-  const score = (bus) => {
-    if (bus.any) return plannedBuses.length > 1 ? -1 : 0;
-    if (bus.colour === preferred) return 100000;
-    return bus.colour < 0 ? pile[0] + pile[1] : pile[bus.colour];
-  };
-  let best = -1;
-  plannedBuses.forEach((bus, i) => {
-    if (busFits(bus, stop) && (best < 0 || score(bus) > score(plannedBuses[best]))) best = i;
-  });
-  return best < 0 ? null : plannedBuses.splice(best, 1)[0];
-}
-
-function showNext(stop) {
-  const s = layout.stopSpots[stop];
-  reserved[stop] = takeBus(stop);
-  if (previews[stop]) scene.remove(previews[stop]);
-  previews[stop] = null;
-  if (!reserved[stop]) return;
-  previews[stop] = makeBus(reserved[stop].colour, stop);
-  previews[stop].scale.setScalar(0.55);
-  previews[stop].position.set(s.x + s.dx * (EXIT_LENGTH + 2.9), 0, s.z + s.dz * (EXIT_LENGTH + 2.9));
-}
-
-function parkBus(stop, plan = reserved[stop]) {
-  if (!plan) return;
-  const s = layout.stopSpots[stop];
-  const mesh = makeBus(plan.colour, stop);
-  const x = s.x + s.dx * (EXIT_LENGTH + 0.85);
-  const z = s.z + s.dz * (EXIT_LENGTH + 0.85);
-  mesh.position.set(x, 10, z);
-  buses[stop] = { colour: plan.colour, any: !!plan.any, mesh, x, z, seats: plan.seats, size: plan.size, quota: seatQuota(plan), boarded: [0, 0, 0], fill: 0, called: [0, 0, 0], parked: false, y: 10, wobble: 0 };
-  if (plan.any) announce('The giant bus! Send everyone to it');
-  showNext(stop);
-}
-
-function buildRoads(current) {
-  roadGroup.clear();
-  layout.rects = [];
-  const road = (cx, cz, w, d) => {
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, 0.02, d), roadMaterial);
-    mesh.position.set(cx, 0, cz);
-    mesh.receiveShadow = true;
-    roadGroup.add(mesh);
-    layout.rects.push({ cx, cz, w, d });
-  };
-  layout.sources.forEach((source) => {
-    if (source.colour >= current.colours) return;
-    const [dx, dz] = PORT[source.port], [x, z] = layout.discs[source.disc];
-    road(x + dx * 22, z + dz * 22, dx ? 44 : 2.2, dz ? 44 : 2.2);
-  });
-  layout.linkPaths.forEach((l) => {
-    const middle = l.length / 2;
-    road(l.x + l.dx * middle, l.z + l.dz * middle, l.dx ? l.length + 2 : 2.2, l.dz ? l.length + 2 : 2.2);
-  });
-  layout.stopSpots.forEach((s) => {
-    const length = EXIT_LENGTH + 2;
-    road(s.x + s.dx * length / 2, s.z + s.dz * length / 2, s.dx ? length : 2.2, s.dz ? length : 2.2);
-  });
-  layout.discs.forEach(([x, z]) => layout.rects.push({ cx: x, cz: z, w: 6.2, d: 6.2 }));
-  layout.stopSpots.forEach((s) => layout.rects.push({ cx: s.x + s.dx * (EXIT_LENGTH + 2.9), cz: s.z + s.dz * (EXIT_LENGTH + 2.9), w: 5.4, d: 5.4 }));
-}
-
-function refreshCity() {
-  const current = LEVELS[level];
-  const progress = level / (LEVEL_COUNT - 1);
-  const density = 0.3 + 0.7 * Math.min(1, progress * 1.5);
-  const mainLink = layout.linkPaths[0];
-  const railX = mainLink.x + mainLink.dx * mainLink.length / 2, railZ = mainLink.z + mainLink.dz * mainLink.length / 2;
-  const dummy = new THREE.Object3D();
-  let treeCount = 0;
-
-  citySlots.forEach((slot) => {
-    const clearance = Math.min(...layout.rects.map((r) => Math.max(Math.abs(slot.x - r.cx) - r.w / 2, Math.abs(slot.z - r.cz) - r.d / 2)));
-    const underLandmark = Object.keys(landmarkMeshes).some((id) => {
-      const [x, z] = layout.landmarks[id], [halfX, halfZ] = LANDMARK_SIZE[id];
-      return Math.abs(slot.x - x) < halfX + 0.8 && Math.abs(slot.z - z) < halfZ + 0.8;
+function makeBus(c) {
+  const col = COLOURS[c], group = new THREE.Group();
+  const glass = paint(0x21304A, 0.2), tyre = paint(0x2A3040, 0.75);
+  group.add(part(roundedBox(2.05, 0.46, 3.7, 0.3), paint(col.dark, 0.5), 0, 0.42, 0));
+  group.add(part(roundedBox(1.95, 1.12, 3.6, 0.36), paint(col.body, 0.42), 0, 1.14, 0));
+  group.add(part(roundedBox(1.72, 0.14, 3.2, 0.2), paint(new THREE.Color(col.body).lerp(new THREE.Color(0xFFFFFF), 0.4).getHex(), 0.4), 0, 1.78, 0, false));
+  [1, -1].forEach((side) => {
+    group.add(part(roundedBox(0.05, 0.42, 3, 0.02), glass, side * 0.985, 1.26, 0, false));
+    [-1.08, 1.08].forEach((z) => {
+      const wheel = part(new THREE.CylinderGeometry(0.34, 0.34, 0.24, 20), tyre, side * 0.98, 0.3, z);
+      wheel.rotation.z = Math.PI / 2;
+      group.add(wheel);
     });
-    const onRail = current.train && (mainLink.dx ? Math.abs(slot.x - railX) < 1.4 : Math.abs(slot.z - railZ) < 1.4);
-    const free = clearance >= 0.8 && !underLandmark && !onRail;
-    const built = free && slot.order < density;
-    slot.mesh.visible = built;
-    if (built) {
-      const wanted = (0.45 + slot.shape * 1.7) * (0.55 + 1.5 * progress) * theme.tall;
-      const height = Math.max(0.35, Math.min(wanted, 0.7 + clearance * 1.1));
-      slot.mesh.scale.y = height;
-      slot.mesh.position.y = height / 2;
-    } else if (free && slot.shape < theme.trees) {
-      dummy.position.set(slot.x, 0.75, slot.z);
-      dummy.scale.setScalar(0.75 + slot.order * 0.6);
-      dummy.updateMatrix();
-      trees.setMatrixAt(treeCount++, dummy.matrix);
-    }
   });
-  trees.count = treeCount;
-  trees.instanceMatrix.needsUpdate = true;
+  return group;
 }
 
-function applyWorld() {
-  const current = LEVELS[level];
-  theme = WORLDS[current.world].theme;
-  layout = layoutFor(current.layoutKey);
-  discs = allDiscs.slice(0, layout.discs.length);
-  allDiscs.forEach((d, i) => {
-    const spot = layout.discs[i];
-    d.group.visible = !!spot;
-    if (!spot) return;
-    d.x = spot[0];
-    d.z = spot[1];
-    d.group.position.set(d.x, 0, d.z);
-  });
+const bodies = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.16, 0.21, 0.4, 10), new THREE.MeshStandardMaterial({ roughness: 0.5 }), TOTAL);
+const heads = new THREE.InstancedMesh(new THREE.SphereGeometry(0.165, 12, 10), new THREE.MeshStandardMaterial({ roughness: 0.55 }), TOTAL);
+bodies.castShadow = heads.castShadow = true;
+bodies.frustumCulled = heads.frustumCulled = false;
+scene.add(bodies, heads);
 
-  scene.background = new THREE.Color(theme.ground);
-  groundMaterial.color.setHex(theme.ground);
-  roadMaterial.color.setHex(theme.road);
-  arcMaterial.color.setHex(theme.road);
-  theme.blocks.forEach((hex, i) => blockMaterials[i].color.setHex(hex));
-  treeMaterial.color.setHex(theme.tree);
-  sun.color.setHex(theme.sunColour);
+const POPS = 90;
+const pops = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.15, 1), new THREE.MeshBasicMaterial(), POPS);
+pops.frustumCulled = false;
+scene.add(pops);
+const popBits = Array.from({ length: POPS }, (_, i) => { pops.setMatrixAt(i, new THREE.Matrix4().makeScale(0, 0, 0)); pops.setColorAt(i, new THREE.Color(0xffffff)); return { life: 0, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0 }; });
+let nextPop = 0;
 
-  buildRoads(current);
-  Object.keys(landmarkMeshes).forEach((id) => {
-    const [x, z] = layout.landmarks[id];
-    landmarkMeshes[id].position.set(x, 0, z);
-  });
+const el = (id) => document.getElementById(id);
+const scratch = new THREE.Object3D(), paintColor = new THREE.Color();
+let audio, phase = 'menu', countdown = 0, people = [], lines = [[], [], []], acc = [0, 0, 0], stops = [], depot = [], flying = [];
+let boarded = 0, runners = 0, shake = 0, combo = 0, bestCombo = 0, sinceFlow = 0, labels = {}, lastBlocks = ['', '', ''], lastTick = 0, lastSig = '';
 
-  rail.visible = current.train;
-  const mainLink = layout.linkPaths[0];
-  rail.position.x = mainLink.x + mainLink.dx * mainLink.length / 2;
-  rail.position.z = mainLink.z + mainLink.dz * mainLink.length / 2;
-  rail.rotation.y = mainLink.dz ? Math.PI / 2 : 0;
-  trainMesh.rotation.y = rail.rotation.y;
-
-  particles.visible = !!theme.particle;
-  if (theme.particle) {
-    const tint = new THREE.Color();
-    motes.forEach((_, i) => particles.setColorAt(i, tint.setHex(theme.particle.colours[i % theme.particle.colours.length])));
-    particles.instanceColor.needsUpdate = true;
-  }
-
-  refreshCity();
-  resize();
-}
-
-function showCard() {
-  const current = LEVELS[level];
-  if (seenCards[level] || (!current.cards.length && !current.worldStart)) return;
-  document.getElementById('cardTitle').textContent = current.worldStart ? `World ${current.world + 1}: ${WORLDS[current.world].name}` : 'Something new';
-  document.getElementById('cardList').replaceChildren(...current.cards.map(([title, text]) => {
-    const row = document.createElement('div');
-    const name = document.createElement('b');
-    name.textContent = title;
-    row.append(name, text);
-    return row;
-  }));
-  document.getElementById('card').style.display = 'flex';
-  paused = true;
-}
-
-function closeCard() {
-  seenCards[level] = true;
-  document.getElementById('card').style.display = 'none';
-  paused = false;
-  save();
-}
-
-function startLevel(index) {
-  level = index;
-  runId++;
-  filled = streak = shake = 0;
-  started = over = won = false;
-
-  buses.forEach((b, i) => { if (b) { scene.remove(b.mesh); buses[i] = null; } });
-  previews.forEach((p, i) => { if (p) { scene.remove(p); previews[i] = null; } });
-  applyWorld();
-
-  const current = LEVELS[index];
-  allDiscs.forEach((d) => {
-    d.k = 0;
-    d.target = d.angle = d.warn = d.locked = d.flip = 0;
-    d.group.rotation.y = 0;
-    d.plate.material.color.setHex(theme.plate);
-  });
-
-  ambulance = null;
-  ambulanceClock = 4;
-  lockClock = 5;
-  train = null;
-  trainClock = 6;
-  rogueClock = ROGUE_GAP;
-  strikes = 0;
-  timeLeft = current.timeLimit || 0;
-  Object.keys(timers).forEach((key) => { timers[key] = 0; });
-  dangerZone.visible = ambulanceMesh.visible = trainMesh.visible = false;
-  Object.keys(POWER_LABELS).forEach((key) => {
-    charges[key] = current.powers.includes(key) ? POWER_CHARGES + (extra[key] || 0) : 0;
-  });
-  plannedBuses = planBuses(current);
-  const counts = crowdFromPlan(plannedBuses, current.colours);
-  startingCrowd = counts[0] + counts[1] + counts[2];
-  crowd = allPeople.slice(0, startingCrowd);
-  people.count = crowd.length;
-  people.material = current.night ? glowMaterial : dayMaterial;
-  const tint = new THREE.Color();
-  waiting = counts.slice();
-  piled = [0, 0, 0];
-  walking = [0, 0, 0];
-  pileAt.forEach((pile) => pile.fill(0));
-  reserved.fill(null);
-  winning = false;
-  let person = 0;
-  counts.forEach((count, colour) => {
-    // Each river is one long line reaching back off-screen, so it flows without a gap until its last person.
-    const lineLength = count / current.rate * 8.25 * current.speed;
-    for (let i = 0; i < count; i++) {
-      const p = crowd[person];
-      p.src = colour;
-      people.setColorAt(person, tint.setHex(PALETTE[colour].hex));
-      Object.assign(p, { phase: 0, s: GATE - 0.5 - (i / count) * lineLength, stopped: false, u: 0 });
-      person++;
-    }
-  });
-  people.instanceColor.needsUpdate = true;
-  countdownLeft = 3;
-
-  surge = [0, 0, 0];
-  schoolClock = SCHOOL_GAP;
-  officesFired = stadiumFired = false;
-  announceLeft = 0;
-  paused = false;
-  document.getElementById('levels').style.display = 'none';
-  document.getElementById('end').style.display = 'none';
-  stuck.fill(0);
-  flyers.forEach((f) => scene.remove(f.mesh));
-  flyers.length = 0;
-  bits.forEach((b) => scene.remove(b.mesh));
-  bits = [];
-
-  // The opening buses match the rivers, so the first flow boards correctly.
-  const startingRoutes = layout.discs.map(() => 0);
-  const matched = {};
-  layout.sources.forEach((source) => {
-    if (source.colour >= current.colours) return;
-    const stop = routeOf(layout, source, startingRoutes);
-    if (stop !== null) matched[stop] = source.colour;
-  });
-  activeStops().forEach((stop) => {
-    reserved[stop] = takeBus(stop, matched[stop]);
-    parkBus(stop);
-  });
-
-  document.getElementById('hint').textContent = current.intro;
-  updateHud();
-  showCard();
-  save();
-}
-
-function updateHud() {
-  document.getElementById('coins').textContent = coins;
-  const current = LEVELS[level];
-  const extras = [];
-  if (current.timeLimit) extras.push(`${Math.ceil(timeLeft)}s`);
-  if (current.maxStrikes) extras.push(`Strikes ${strikes}/${current.maxStrikes}`);
-  document.getElementById('progress').textContent = [WORLDS[current.world].name, `Level ${level + 1}`, `${totalWaiting()} left`, ...extras].join(' · ');
-  Object.keys(POWER_LABELS).forEach((id) => {
-    const button = document.getElementById(id);
-    button.style.display = current.powers.includes(id) ? '' : 'none';
-    button.textContent = `${POWER_LABELS[id]} ×${charges[id]}`;
-    button.disabled = charges[id] === 0;
-  });
-}
-
-// People taken by the Flush vans no longer need seats, so later buses shrink to stay exactly full.
-function shrinkBusesFor(count, colour) {
-  let left = count;
-  const queued = [...plannedBuses, ...reserved.filter(Boolean)];
-  queued.filter((b) => b.colour === colour).forEach((b) => {
-    const cut = Math.min(left, b.seats - 1);
-    b.seats -= cut;
-    left -= cut;
-  });
-  buses.forEach((bus) => {
-    if (!bus || left === 0) return;
-    const cut = Math.min(left, bus.quota[colour] - bus.boarded[colour] - bus.called[colour]);
-    bus.quota[colour] -= cut;
-    bus.seats -= cut;
-    left -= cut;
-  });
-  queued.filter((b) => b.colour === -1).forEach((b) => {
-    const cut = Math.min(left, Math.max(0, b.seats - 2));
-    b.seats -= cut;
-    b.shrunk = b.shrunk || [0, 0, 0];
-    b.shrunk[colour] += cut;
-    left -= cut;
-  });
-}
-
-function flushMess() {
-  layout.stopSpots.forEach((s, stop) => {
-    if (!stuck[stop]) return;
-    const van = new THREE.Mesh(new THREE.BoxGeometry(1.7, 1, 3), standard(0xF3F5F7));
-    van.position.set(s.x + s.dx * EXIT_LENGTH, 0.5, s.z + s.dz * EXIT_LENGTH);
-    if (s.dz) van.rotation.y = Math.PI / 2;
-    scene.add(van);
-    flyers.push({ mesh: van, dx: s.dx, dz: s.dz, speed: 6 });
-  });
-  const taken = [0, 0, 0];
-  crowd.forEach((p) => {
-    if (p.phase !== 3) return;
-    leavePile(p);
-    p.phase = 6;
-    waiting[p.src]--;
-    taken[p.src]++;
-  });
-  taken.forEach(shrinkBusesFor);
-  shake = 0.5;
-  document.getElementById('flash').animate([{ opacity: 0.25 }, { opacity: 0 }], 180);
-}
-
-function swapColours() {
-  const parked = buses.filter((b, stop) => stop > 0 && b && b.parked && b.colour >= 0);
-  const first = parked.length ? parked[0].colour : 0;
-  parked.forEach((b, i) => {
-    b.colour = i + 1 < parked.length ? parked[i + 1].colour : first;
-    b.mesh.children[0].material = sides[b.colour];
-    b.mesh.children[1].material = bodies[b.colour];
-  });
-}
-
-function usePower(key) {
-  if (over || !charges[key]) return;
-  charges[key]--;
-  if (key === 'flush') flushMess();
-  else if (key === 'swap') swapColours();
-  else timers[key] = POWER_TIME[key];
-  beep(key === 'flush' ? 620 : 300, 0.3, 0.25);
-  updateHud();
-}
-
-function addStrike() {
-  const max = LEVELS[level].maxStrikes;
-  if (!max) return;
-  strikes++;
-  updateHud();
-  announce(`Strike ${strikes} of ${max}!`);
-  shake = 0.7;
-  beep(110, 0.4, 0.3);
-  if (strikes >= max) endLevel(false, 'Too many hits');
-}
-
-function launchPeople() {
-  const main = layout.linkPaths[0];
-  let flung = 0;
-  crowd.forEach((p) => {
-    if (p.phase !== 4 || p.link !== 0) return;
-    const along = p.forward ? p.u : main.length - p.u;
-    if (Math.abs(along - main.length / 2) > 1.6) return;
-    Object.assign(p, { phase: 5, fx: main.x + main.dx * along + main.dz * p.lat, fy: 0.3, fz: main.z + main.dz * along + main.dx * p.lat, vx: (Math.random() - 0.5) * 12, vy: 8 + Math.random() * 9, vz: (Math.random() - 0.5) * 18 });
-    flung++;
-  });
-  shake = 0.7;
-  beep(120, 0.3, 0.3);
-  if (flung >= TRAIN_STRIKE_HITS) addStrike();
-  if (totalMess() >= LEVELS[level].maxMess) endLevel(false);
-}
-
-function updateTrain(dt, time) {
-  const main = layout.linkPaths[0];
-  const midX = main.x + main.dx * main.length / 2, midZ = main.z + main.dz * main.length / 2;
-  if (!train) {
-    trainClock -= dt;
-    if (trainClock <= 0) {
-      train = { warn: TRAIN_WARNING, along: -30, hit: false };
-      announce('Train coming! Clear the bridge');
-      beep(990, 0.4, 0.25);
-    }
-    return;
-  }
-  if (train.warn > 0) {
-    train.warn -= dt;
-    dangerZone.position.set(midX, 0.04, midZ);
-    dangerZone.rotation.y = main.dz ? Math.PI / 2 : 0;
-    dangerZone.visible = true;
-    dangerZone.material.opacity = 0.35 + Math.abs(Math.sin(time * 12)) * 0.5;
-    return;
-  }
-  trainMesh.visible = true;
-  train.along += TRAIN_SPEED * dt;
-  trainMesh.position.set(midX + main.dz * train.along, 0, midZ + main.dx * train.along);
-  if (!train.hit && train.along > -6) {
-    train.hit = true;
-    launchPeople();
-  }
-  if (train.along > 30) {
-    train = null;
-    trainMesh.visible = false;
-    trainClock = TRAIN_GAP;
-  }
-}
-
-function updateRogue(dt) {
-  rogueClock -= dt;
-  if (rogueClock <= 0 && timers.lock <= 0) {
-    discs[Math.floor(Math.random() * discs.length)].flip = ROGUE_WARNING;
-    rogueClock = ROGUE_GAP;
-  }
-  discs.forEach((d) => {
-    if (!(d.flip > 0)) return;
-    d.flip -= dt;
-    if (d.flip > 0) return;
-    if (timers.lock <= 0 && d.locked <= 0) {
-      d.k++;
-      d.target += Math.PI / 2;
-      shake = Math.max(shake, 0.2);
-      beep(200, 0.2, 0.2);
-    }
-  });
-}
-
-function updateAmbulance(dt, time) {
-  if (!ambulance) {
-    ambulanceClock -= dt;
-    if (ambulanceClock <= 0) {
-      const options = activeStops().filter((stop) => stop > 0);
-      ambulance = { stop: options[Math.floor(Math.random() * options.length)], left: AMBULANCE_WARNING + AMBULANCE_STAY, hits: 0 };
-    }
-  }
-  if (!ambulance) return;
-  ambulance.left -= dt;
-  const s = layout.stopSpots[ambulance.stop];
-  const midX = s.x + s.dx * EXIT_LENGTH / 2, midZ = s.z + s.dz * EXIT_LENGTH / 2;
-  ambulance.active = ambulance.left <= AMBULANCE_STAY;
-  if (!ambulance.active) {
-    dangerZone.position.set(midX, 0.04, midZ);
-    dangerZone.rotation.y = s.dx ? Math.PI / 2 : 0;
-    dangerZone.visible = true;
-    dangerZone.material.opacity = 0.35 + Math.abs(Math.sin(time * 12)) * 0.5;
-  } else if (!ambulanceMesh.visible) {
-    ambulanceMesh.visible = true;
-    ambulanceMesh.position.set(midX, 8, midZ);
-    ambulanceMesh.rotation.y = s.dx ? Math.PI / 2 : 0;
-    shake = Math.max(shake, 0.2);
-    beep(880, 0.2, 0.2);
-  }
-  if (ambulanceMesh.visible) ambulanceMesh.position.y = Math.max(0, ambulanceMesh.position.y - dt * 40);
-  if (ambulance.left <= 0) {
-    if (ambulance.hits >= AMBULANCE_STRIKE_HITS) addStrike();
-    ambulance = null;
-    ambulanceMesh.visible = false;
-    ambulanceClock = AMBULANCE_GAP;
-  }
-}
-
-function updateParticles(dt, time) {
-  if (!theme.particle) return;
-  const { speed, size, tall } = theme.particle;
-  const m = particles.instanceMatrix.array;
-  motes.forEach((mote, i) => {
-    mote.y -= speed * dt;
-    if (mote.y < 0) mote.y = 16;
-    const x = mote.x + Math.sin(time + mote.drift) * 0.6;
-    m[i * 16] = size;
-    m[i * 16 + 5] = tall ? size * 8 : size;
-    m[i * 16 + 10] = size;
-    m[i * 16 + 12] = x;
-    m[i * 16 + 13] = mote.y;
-    m[i * 16 + 14] = mote.z;
-  });
-  particles.instanceMatrix.needsUpdate = true;
-}
-
-function updateHazards(dt, time) {
-  Object.keys(timers).forEach((key) => { timers[key] = Math.max(0, timers[key] - dt); });
-  dangerZone.visible = false;
-  const current = LEVELS[level];
-  const lit = !current.night || timers.flood > 0 || Math.sin(time * 2.4) > 0.82;
-  skyLight.intensity = lit ? theme.sky : 0.08;
-  sun.intensity = lit ? theme.sun : 0.05;
-  Object.values(landmarkMeshes).forEach((m) => {
-    if (m.position.y > 0) {
-      m.position.y = Math.max(0, m.position.y - dt * 30);
-      if (m.position.y === 0) shake = 0.7;
-    }
-  });
-  updateParticles(dt, time);
-
-  if (!started && !over && countdownLeft > 0) {
-    countdownLeft -= dt;
-    const el = document.getElementById('countdown');
-    if (countdownLeft > 0) {
-      const number = Math.ceil(countdownLeft);
-      if (el.textContent !== String(number)) {
-        el.textContent = number;
-        beep(392, 0.2, 0.15);
-      }
-    } else {
-      el.textContent = 'Go!';
-      started = true;
-      beep(784, 0.4, 0.2);
-      setTimeout(() => { el.textContent = ''; }, 500);
-    }
-  }
-  if (current.singleDisc) discs[1].plate.material.color.setHex(PLATE_ASLEEP);
-  if (!started || over) return;
-
-  if (current.timeLimit) {
-    const shown = Math.ceil(timeLeft);
-    timeLeft -= dt;
-    if (Math.ceil(timeLeft) !== shown) updateHud();
-    if (timeLeft <= 0) {
-      endLevel(false, 'Out of time');
-      return;
-    }
-  }
-  if (current.train) updateTrain(dt, time);
-  if (current.rogue) updateRogue(dt);
-  if (current.ambulance) updateAmbulance(dt, time);
-
-  surge = surge.map((s) => Math.max(0, s - dt));
-  if (announceLeft > 0) {
-    announceLeft -= dt;
-    if (announceLeft <= 0) document.getElementById('hint').textContent = '';
-  }
-  if (owned.school && level >= 10 && !current.calm) {
-    schoolClock -= dt;
-    if (schoolClock <= 0) {
-      schoolClock = SCHOOL_GAP;
-      surge[0] = SCHOOL_SURGE;
-      announce('School bell! Blue surge');
-      beep(780, 0.3, 0.2);
-    }
-  }
-  if (owned.offices && level >= 20 && !current.calm && !officesFired) {
-    officesFired = true;
-    surge[1] = OFFICE_SURGE;
-    announce('Morning rush! Orange surge');
-  }
-  if (owned.stadium && level >= 30 && !current.calm && !stadiumFired && totalWaiting() <= startingCrowd / 2) {
-    stadiumFired = true;
-    surge[0] = surge[1] = STADIUM_SURGE;
-    shake = 0.7;
-    announce('Full time! Everyone surges');
-    beep(330, 0.5, 0.3);
-  }
-
-  if (current.roadworks) {
-    lockClock -= dt;
-    if (lockClock <= 0) {
-      if (timers.lock <= 0) discs[Math.floor(Math.random() * discs.length)].warn = LOCK_WARNING;
-      lockClock = LOCK_GAP;
-    }
-  }
-  discs.forEach((d, i) => {
-    if (d.warn > 0) {
-      d.warn -= dt;
-      if (d.warn <= 0) d.locked = LOCK_TIME;
-    } else if (d.locked > 0) {
-      d.locked -= dt;
-    }
-    if (!(current.singleDisc && i === 1)) d.plate.material.color.setHex(d.flip > 0 ? PLATE_ROGUE : d.locked > 0 ? PLATE_LOCKED : d.warn > 0 ? PLATE_WARN : theme.plate);
-  });
-}
-
-function endLevel(cleared, reason = 'Total mess') {
-  if (over) return;
-  over = true;
-  won = cleared;
-  const last = level === LEVEL_COUNT - 1;
-  if (cleared) {
-    extra = { flush: 0, slow: 0 };
-    beaten = Math.max(beaten, level + 1);
-  }
-  document.getElementById('headline').textContent = !cleared ? reason : last ? 'You ran the city' : 'Level cleared';
-  document.getElementById('next').textContent = !cleared ? 'Try again' : last ? 'Play it again' : 'Next level';
-  document.getElementById('shop').style.display = cleared && !last ? 'flex' : 'none';
-  updateShop();
-  document.getElementById('end').style.display = 'flex';
-  save();
-}
-
-const buildingAfter = (index) => BUILDINGS.find((b) => b.afterLevel === index);
-
-function isUnlocked(index) {
-  if (OPEN_ALL_LEVELS || index === 0) return true;
-  const required = buildingAfter(index - 1);
-  return beaten >= index && (!required || !!owned[required.id]);
-}
-
-function showWorld(world) {
-  document.getElementById('worldTabs').replaceChildren(...WORLDS.map((w, i) => {
-    const tab = document.createElement('button');
-    tab.textContent = `${i + 1}. ${w.name}`;
-    tab.className = i === world ? 'current' : '';
-    tab.onclick = () => showWorld(i);
-    return tab;
-  }));
-  document.getElementById('levelList').replaceChildren(...LEVELS.slice(world * 10, world * 10 + 10).map((_, step) => {
-    const i = world * 10 + step;
-    const button = document.createElement('button');
-    const required = buildingAfter(i - 1);
-    const requirement = beaten < i ? `beat level ${i}` : required && !owned[required.id] ? `needs ${required.name}` : '';
-    button.textContent = isUnlocked(i) ? `Level ${i + 1}` : `Level ${i + 1} · ${requirement}`;
-    button.disabled = !isUnlocked(i);
-    button.onclick = () => startLevel(i);
-    return button;
-  }));
-}
-
-function openLevels() {
-  paused = true;
-  showWorld(LEVELS[level].world);
-  document.getElementById('levels').style.display = 'flex';
-}
-
-function closeLevels() {
-  paused = document.getElementById('card').style.display === 'flex';
-  document.getElementById('levels').style.display = 'none';
-}
-
-function updateShop() {
-  const summary = document.getElementById('summary');
-  const next = document.getElementById('next');
-  updateHud();
-  if (!over) return;
-  if (!won) {
-    summary.textContent = `${totalWaiting()} people were still waiting.`;
-    next.disabled = false;
-    return;
-  }
-  if (level === LEVEL_COUNT - 1) {
-    summary.textContent = `Final score: ${coins} coins.`;
-    next.disabled = false;
-    return;
-  }
-  const building = buildingAfter(level);
-  const built = !building || !!owned[building.id];
-  const build = document.getElementById('build');
-  build.style.display = building ? '' : 'none';
-  if (building) {
-    summary.textContent = built ? `${coins} coins left. ${building.name} built.` : `${coins} coins. Build the ${building.name} to unlock level ${level + 2}. ${building.pitch}`;
-    build.textContent = built ? `${building.name} built` : `Build ${building.name}: ${building.price}`;
-    build.disabled = built || coins < building.price;
-  } else {
-    summary.textContent = `${coins} coins. Level ${level + 2} is open.`;
-  }
-  next.disabled = !built && !OPEN_ALL_LEVELS;
-  const upcoming = LEVELS[level + 1].powers;
-  [['buyFlush', 'flush', 'Flush'], ['buySlow', 'slow', 'Slow']].forEach(([id, key, label]) => {
-    const button = document.getElementById(id);
-    button.style.display = built && upcoming.includes(key) ? '' : 'none';
-    button.textContent = `+1 ${label}: ${EXTRA_PRICE} (${extra[key]}/${MAX_EXTRA})`;
-    button.disabled = coins < EXTRA_PRICE || extra[key] >= MAX_EXTRA;
-  });
-}
-
-function buyBuilding() {
-  const building = buildingAfter(level);
-  if (!building || owned[building.id] || coins < building.price) return;
-  coins -= building.price;
-  owned[building.id] = true;
-  placeLandmark(building.id, true);
-  beep(520, 0.3, 0.25);
-  save(level + 1);
-  updateShop();
-}
-
-function buyExtra(key) {
-  if (coins < EXTRA_PRICE || extra[key] >= MAX_EXTRA) return;
-  coins -= EXTRA_PRICE;
-  extra[key]++;
-  beep(620, 0.15, 0.2);
-  save(level + 1);
-  updateShop();
-}
-
-function newGame() {
-  coins = 0;
-  owned = {};
-  extra = { flush: 0, slow: 0 };
-  beaten = 0;
-  seenCards = {};
-  Object.keys(landmarkMeshes).forEach((id) => { scene.remove(landmarkMeshes[id]); delete landmarkMeshes[id]; });
-  startLevel(0);
-}
-
-function nextLevel() {
-  startLevel(won && level < LEVEL_COUNT - 1 ? level + 1 : level);
-}
-
-function beep(freq, length, volume) {
+function tone(freq, length, volume) {
   if (!audio) return;
-  const osc = audio.createOscillator();
-  const gain = audio.createGain();
+  const osc = audio.createOscillator(), gain = audio.createGain();
   osc.type = 'triangle';
   osc.frequency.value = freq;
   gain.gain.setValueAtTime(volume, audio.currentTime);
@@ -1272,373 +207,419 @@ function beep(freq, length, volume) {
   osc.start();
   osc.stop(audio.currentTime + length);
 }
-
-function twist(d) {
-  if (over || !started || !discs[d]) return;
-  if (LEVELS[level].singleDisc && d > 0) return;
-  if (discs[d].locked > 0) {
-    beep(90, 0.15, 0.2);
-    return;
+function burst(x, y, z, hex, n) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * 6.28, power = 2 + Math.random() * 5;
+    Object.assign(popBits[nextPop], { life: 0.7 + Math.random() * 0.4, x, y, z, vx: Math.cos(a) * power, vy: 5 + Math.random() * 6, vz: Math.sin(a) * power });
+    pops.setColorAt(nextPop, paintColor.setHex(hex));
+    nextPop = (nextPop + 1) % POPS;
   }
-  discs[d].k++;
-  discs[d].target += Math.PI / 2;
-  shake = Math.max(shake, 0.12);
-  beep(150, 0.14, 0.2);
-  if (announceLeft <= 0) document.getElementById('hint').textContent = '';
+  pops.instanceColor.needsUpdate = true;
+}
+function pin(cls, html) {
+  const node = document.createElement('div');
+  node.className = 'pin ' + cls;
+  node.innerHTML = html;
+  el('labels').append(node);
+  return node;
+}
+function place(node, x, y, z) {
+  const p = new THREE.Vector3(x, y, z).project(camera);
+  node.style.left = (p.x + 1) / 2 * innerWidth + 'px';
+  node.style.top = (1 - p.y) / 2 * innerHeight + 'px';
 }
 
-function burst(stop) {
-  const bus = buses[stop];
-  buses[stop] = null;
-  const s = layout.stopSpots[stop];
-  flyers.push({ mesh: bus.mesh, dx: s.dx, dz: s.dz, speed: 6 });
-  streak++;
-  const lockedBonus = discs.some((d) => d.locked > 0);
-  const gain = Math.round(100 * streak * coinMultiplier() * (lockedBonus ? 2 : 1));
-  if (lockedBonus) announce('Locked bonus: double coins!');
-  coins += gain;
-  const current = LEVELS[level];
-  filled++;
-  updateHud();
-  shake = 0.7;
-  document.getElementById('flash').animate([{ opacity: 0.35 }, { opacity: 0 }], 180);
+const routeState = () => ({ k: discs.map((d) => d.k % 2) });
+const routeOf = (r) => routeStop(r, routeState(), CFG);
+const wants = (stop, c) => !!stop.bus && stop.bus.parked && stop.bus.c === c && stop.bus.claimed < stop.bus.seats;
 
-  for (let i = 0; i < 90; i++) {
-    const mesh = new THREE.Mesh(coinGeometry, coinMaterial);
-    mesh.position.copy(bus.mesh.position).setY(1.2);
+function reset() {
+  flying.forEach((f) => scene.remove(f.mesh));
+  flying = [];
+  stops.forEach((s) => { if (s.bus) scene.remove(s.bus.mesh); });
+  stops = STOPS.map(() => ({ bus: null }));
+  discs.forEach((d) => { d.k = 0; d.spin = 0; d.vel = 0; d.spinner.rotation.y = 0; });
+  depot.flat().forEach((b) => scene.remove(b.mesh));
+  depot = STAGE.lanes.map((lane, l) => lane.map((b, j) => {
+    const mesh = makeBus(b.c);
+    mesh.position.set(LOT_X[l], 0.1, LOT_FRONT - j * LOT_PITCH);
+    mesh.scale.setScalar(LOT_SCALE);
     scene.add(mesh);
-    const a = Math.random() * 6.28, power = 3 + Math.random() * 7;
-    bits.push({ mesh, vx: Math.cos(a) * power, vz: Math.sin(a) * power, vy: 8 + Math.random() * 10, life: 1.3 });
-  }
-
-  const p = bus.mesh.position.clone().setY(1.5).project(camera);
-  const el = document.createElement('span');
-  el.className = 'gain';
-  el.textContent = '+' + gain;
-  el.style.left = (p.x + 1) / 2 * innerWidth + 'px';
-  el.style.top = (1 - p.y) / 2 * innerHeight + 'px';
-  el.onanimationend = () => el.remove();
-  document.body.append(el);
-
-  beep(440 + streak * 30, 0.25, 0.25);
-  const run = runId;
-  setTimeout(() => { if (run === runId && !over) parkBus(stop); }, 450);
-}
-
-function joinPile(p, x, z) {
-  p.phase = 3;
-  p.stopped = true;
-  p.px = x;
-  p.pz = z;
-  piled[p.src]++;
-  pileAt[p.stop][p.src]++;
-  stuck[p.stop]++;
-  if (totalMess() >= LEVELS[level].maxMess) endLevel(false);
-}
-
-function leavePile(p) {
-  piled[p.src]--;
-  pileAt[p.stop][p.src]--;
-  stuck[p.stop]--;
-}
-
-function stick(p) {
-  const s = layout.stopSpots[p.stop];
-  const along = EXIT_LENGTH - Math.random() * 2.4, across = (Math.random() * 2 - 1) * 1.05;
-  joinPile(p, s.x + s.dx * along + s.dz * across, s.z + s.dz * along + s.dx * across);
-}
-
-function landOnPile(p) {
-  const options = activeStops();
-  p.stop = options.reduce((best, stop) => {
-    const a = layout.stopSpots[stop], b = layout.stopSpots[best];
-    return Math.hypot(a.x - p.fx, a.z - p.fz) < Math.hypot(b.x - p.fx, b.z - p.fz) ? stop : best;
-  }, options[0]);
-  joinPile(p, p.fx, p.fz);
-}
-
-const seatsOpen = (bus) => bus.seats - bus.fill - bus.called[0] - bus.called[1] - bus.called[2];
-const wantsPerson = (bus, colour) => bus.boarded[colour] + bus.called[colour] < bus.quota[colour];
-
-function seatQuota(plan) {
-  const colours = LEVELS[level].colours, shrunk = plan.shrunk || [0, 0, 0];
-  const total = plan.seats + shrunk[0] + shrunk[1] + shrunk[2];
-  if (plan.any) return [0, 1, 2].map((c) => (c < colours ? total / colours - shrunk[c] : 0));
-  if (plan.colour < 0) return [total / 2 - shrunk[0], total / 2 - shrunk[1], 0];
-  return [0, 1, 2].map((c) => (c === plan.colour ? plan.seats : 0));
-}
-
-function board(bus, p) {
-  if (p.phase === 3) leavePile(p);
-  bus.fill++;
-  bus.boarded[p.src]++;
-  bus.wobble = 1;
-  p.phase = 6;
-  waiting[p.src]--;
-  updateHud();
-}
-
-function arrive(p) {
-  const bus = buses[p.stop];
-  if (bus && bus.parked && seatsOpen(bus) > 0 && wantsPerson(bus, p.src)) {
-    board(bus, p);
-    if (bus.fill >= bus.seats) burst(p.stop);
-    return;
-  }
-  stick(p);
-}
-
-const PILE_BOARDING_PER_FRAME = 6;
-
-function boardFromPile(bus, stop) {
-  if (!stuck[stop]) return;
-  let boarded = 0;
-  for (const p of crowd) {
-    if (boarded === PILE_BOARDING_PER_FRAME || seatsOpen(bus) <= 0) break;
-    if (p.phase === 3 && p.stop === stop && wantsPerson(bus, p.src)) {
-      board(bus, p);
-      boarded++;
+    return { ...b, mesh };
+  }));
+  boarded = runners = combo = bestCombo = sinceFlow = 0;
+  lastSig = '';
+  acc = [0, 0, 0];
+  lastBlocks = ['', '', ''];
+  people = [];
+  lines = [[], [], []];
+  let id = 0;
+  STAGE.rivers.forEach((river, r) => river.forEach(([c, n], block) => {
+    for (let i = 0; i < n * UNIT; i++) {
+      const p = { id, c, river: r, block, lane: i % LANES, state: 'line', s: 0, target: 0, x: 0, z: 0, bob: Math.random() * 6.28, u: 0, path: null, stop: null, hop: 0 };
+      people.push(p);
+      lines[r].push(p);
+      bodies.setColorAt(id, paintColor.setHex(COLOURS[c].dark));
+      heads.setColorAt(id, paintColor.setHex(COLOURS[c].body));
+      id++;
     }
-  }
+  }));
+  bodies.instanceColor.needsUpdate = heads.instanceColor.needsUpdate = true;
+  lines.forEach((line) => layoutLine(line, true));
+  el('labels').innerHTML = '';
+  labels = {
+    pills: STOPS.map(() => pin('pill', '<span></span><div class="bar"><i></i></div>')),
+    dots: STOPS.map(() => pin('dot', '')),
+    blocks: RIVERS.map((_, r) => pin('blocks' + (r === 1 ? ' right' : ''), ''))
+  };
+  depot.flat().forEach((b) => { b.label = pin('seat', b.n * UNIT); });
+  el('combo').style.opacity = 0;
+  hint('');
+  [0, 1, 2].forEach(callLane);
+  stops.forEach((s, i) => { if (s.bus) parkNow(i, true); });
+  updateLeft();
 }
 
-// When a river has run dry, people stranded at other stops walk over to the bus that needs them.
-function callStrandedPeople(bus, stop) {
-  let called = 0;
-  for (const p of crowd) {
-    if (called === PILE_BOARDING_PER_FRAME || seatsOpen(bus) <= 0) return;
-    if (p.phase !== 3 || p.stop === stop) continue;
-    const colour = p.src;
-    if (waiting[colour] - piled[colour] - walking[colour] > 0) continue;
-    if (!wantsPerson(bus, colour)) continue;
-    leavePile(p);
-    p.phase = 7;
-    p.stop = stop;
-    walking[colour]++;
-    bus.called[colour]++;
-    called++;
-  }
-}
-
-function settleBus(bus, stop) {
-  boardFromPile(bus, stop);
-  callStrandedPeople(bus, stop);
-  if (bus.fill >= bus.seats) burst(stop);
-}
-
-// Rare case after a Flush: if the rivers are empty and no bus wants who is left, one bus takes them exactly.
-function seatLastPeople() {
-  const pileSize = piled[0] + piled[1] + piled[2];
-  if (pileSize === 0 || totalWaiting() > pileSize) return;
-  const parked = buses.filter((b) => b && b.parked);
-  if (parked.some((b) => [0, 1, 2].some((c) => piled[c] > 0 && wantsPerson(b, c)))) return;
-  if (parked.length) {
-    const bus = parked[0];
-    bus.quota = bus.boarded.map((n, c) => n + piled[c]);
-    bus.seats = bus.fill + pileSize;
-  } else if (!buses.some(Boolean)) {
-    parkBus(activeStops()[0], { colour: piled.indexOf(Math.max(...piled)), seats: pileSize, size: 1, any: true });
-  }
-}
-
-function walkToBus(p, dt) {
-  const bus = buses[p.stop];
-  if (!bus) {
-    walking[p.src]--;
-    joinPile(p, p.px, p.pz);
-    return;
-  }
-  const dx = bus.x - p.px, dz = bus.z - p.pz, distance = Math.hypot(dx, dz);
-  if (distance < 0.9) {
-    walking[p.src]--;
-    bus.called[p.src]--;
-    board(bus, p);
-    return;
-  }
-  const step = 9 * dt / distance;
-  p.px += dx * step;
-  p.pz += dz * step;
-}
-
-function enterDisc(p, d, world) {
-  p.phase = 1;
-  p.u = 0;
-  p.disc = d;
-  p.side = localSide(discs[d], world);
-}
-
-function leaveDisc(p) {
-  const disc = discs[p.disc];
-  const out = otherEnd(p.side);
-  const world = (out + disc.k) % 4;
-  const target = layout.ports[p.disc][world];
-  if (target && target.link === 0 && target.forward && timers.hold > 0) {
-    p.u = 0.999;
-    return;
-  }
-  p.u = 0;
-  if (target && target.stop !== undefined) {
-    p.phase = 2;
-    p.stop = target.stop;
-  } else if (target && target.link !== undefined) {
-    p.phase = 4;
-    p.link = target.link;
-    p.forward = target.forward;
-  } else {
-    p.side = out;
-  }
-}
-
-function advance(p, dt, open) {
-  if (p.phase === 3 || p.phase === 6) return;
-  if (p.phase === 7) {
-    walkToBus(p, dt);
-    return;
-  }
-  if (p.phase === 5) {
-    p.vy -= 22 * dt;
-    p.fx += p.vx * dt;
-    p.fy += p.vy * dt;
-    p.fz += p.vz * dt;
-    if (p.fy < 0.3 && p.vy < 0) landOnPile(p);
-    return;
-  }
-  if (!open) return;
-  const speed = p.speed * LEVELS[level].speed * (timers.slow > 0 ? SLOW_FACTOR : 1) * (surge[p.src] > 0 || timers.boost > 0 ? SURGE_SPEED : 1);
-  if (p.phase === 0) {
-    p.s += speed * dt;
-    if (p.s >= GATE) {
-      const source = layout.sources[p.src];
-      enterDisc(p, source.disc, source.port);
-    }
-  } else if (p.phase === 1) {
-    p.u += speed * dt / (R * Math.PI / 2);
-    if (p.u >= 1) leaveDisc(p);
-  } else if (p.phase === 4) {
-    p.u += speed * dt;
-    const path = layout.linkPaths[p.link];
-    if (p.u >= path.length) {
-      if (p.forward) enterDisc(p, path.b, path.bPort);
-      else enterDisc(p, path.a, path.aPort);
-    }
-  } else {
-    p.u += speed * dt;
-    if (ambulance && ambulance.active && ambulance.stop === p.stop && p.u >= 0.8) {
-      ambulance.hits++;
-      stick(p);
-    } else if (p.u >= EXIT_LENGTH) {
-      arrive(p);
-    }
-  }
-}
-
-function place(p, i, time) {
-  let x, z;
-  if (p.phase === 6) {
-    people.instanceMatrix.array[i * 16 + 13] = -50;
-    return;
-  }
-  if (p.phase === 3 || p.phase === 7) {
-    x = p.px;
-    z = p.pz;
-  } else if (p.phase === 5) {
-    x = p.fx;
-    z = p.fz;
-  } else if (p.phase === 0) {
-    const source = layout.sources[p.src];
-    const [dx, dz] = PORT[source.port], [ox, oz] = layout.discs[source.disc];
-    const distance = ROAD_LENGTH - p.s;
-    x = ox + dx * distance + dz * p.lat;
-    z = oz + dz * distance + dx * p.lat;
-  } else if (p.phase === 1) {
-    const disc = discs[p.disc];
-    const first = p.side % 2 === 0;
-    const t = (first ? p.u : 1 - p.u) * Math.PI / 2;
-    const r = R + p.lat;
-    const lx = p.side < 2 ? R - r * Math.cos(t) : -R + r * Math.cos(t);
-    const lz = p.side < 2 ? -R + r * Math.sin(t) : R - r * Math.sin(t);
-    const c = Math.cos(disc.angle), s = Math.sin(disc.angle);
-    x = disc.x + lx * c - lz * s;
-    z = disc.z + lx * s + lz * c;
-  } else if (p.phase === 4) {
-    const path = layout.linkPaths[p.link];
-    const along = p.forward ? p.u : path.length - p.u;
-    x = path.x + path.dx * along + path.dz * p.lat;
-    z = path.z + path.dz * along + path.dx * p.lat;
-  } else {
-    const s = layout.stopSpots[p.stop];
-    const squeeze = 1 - Math.pow(p.u / EXIT_LENGTH, 2) * 0.85;
-    x = s.x + s.dx * p.u + s.dz * p.lat * squeeze;
-    z = s.z + s.dz * p.u + s.dx * p.lat * squeeze;
-  }
-  const hop = p.stopped && p.phase !== 7 ? 0 :Math.abs(Math.sin(time * 14 + p.bob)) * 0.12;
-  const m = people.instanceMatrix.array;
-  m[i * 16 + 12] = x;
-  m[i * 16 + 13] = p.phase === 5 ? p.fy : 0.26 + hop;
-  m[i * 16 + 14] = z;
-}
-
-function step(dt, time) {
-  discs.forEach((d) => {
-    d.angle += (d.target - d.angle) * Math.min(1, dt * 13);
-    d.group.rotation.y = -d.angle;
+function layoutLine(line, instant) {
+  const count = [0, 0, 0];
+  let lastBlock = null, offset = 0;
+  line.forEach((p) => {
+    if (lastBlock !== null && p.block !== lastBlock) offset += GAP;
+    lastBlock = p.block;
+    p.target = GATE + 0.25 + count[p.lane] * ROW + offset;
+    count[p.lane]++;
+    if (instant) p.s = p.target;
   });
-
-  updateHazards(dt, time);
-
-  crowd.forEach((p, i) => {
-    advance(p, dt, started);
-    place(p, i, time);
-  });
-  people.instanceMatrix.needsUpdate = true;
-  document.getElementById('fill').style.width = Math.min(100, totalMess() / LEVELS[level].maxMess * 100) + '%';
-
-  if (started && !over) {
-    seatLastPeople();
-    if (!winning && totalWaiting() === 0) {
-      winning = true;
-      const run = runId;
-      setTimeout(() => { if (run === runId) endLevel(true); }, 700);
+}
+function linePos(p) {
+  const river = RIVERS[p.river], [dx, dz] = PORT[river.port], [ox, oz] = DISCS[river.disc], lat = (p.lane - 1) * 0.66;
+  return [ox + dx * p.s + (dz ? lat : 0), oz + dz * p.s + (dx ? lat : 0)];
+}
+function buildPath(p, stopIndex) {
+  const g = GEO[stopIndex], lat = (p.lane - 1) * 0.66, points = [linePos(p)];
+  let disc = RIVERS[p.river].disc, port = RIVERS[p.river].port;
+  for (let guard = 0; guard < 2; guard++) {
+    const d = discs[disc], k = d.k, local = ((port - k) % 4 + 4) % 4, out = (otherEnd(local) + k) % 4;
+    const first = local % 2 === 0, turn = k * Math.PI / 2, r = R + lat;
+    for (let i = 0; i <= 12; i++) {
+      const t = (first ? i / 12 : 1 - i / 12) * Math.PI / 2;
+      const lx = local < 2 ? R - r * Math.cos(t) : -R + r * Math.cos(t);
+      const lz = local < 2 ? -R + r * Math.sin(t) : R - r * Math.sin(t);
+      points.push([d.x + lx * Math.cos(turn) - lz * Math.sin(turn), d.z + lx * Math.sin(turn) + lz * Math.cos(turn)]);
     }
+    if (disc === 0 && out === S) { disc = 1; port = N; } else break;
   }
-  buses.forEach((bus, stop) => {
-    if (!bus) return;
-    if (bus.parked && started && !over) settleBus(bus, stop);
-    if (!buses[stop] || buses[stop] !== bus) return;
-    if (!bus.parked) {
-      bus.y = Math.max(0, bus.y - dt * 42);
-      if (bus.y === 0) { bus.parked = true; shake = Math.max(shake, 0.25); }
-    }
-    bus.wobble = Math.max(0, bus.wobble - dt * 5);
-    const swell = bus.size * (1 + (bus.fill / bus.seats) * 0.75);
-    const jitter = Math.sin(time * 60) * 0.05 * bus.wobble;
-    bus.mesh.position.set(bus.x, bus.y, bus.z);
-    bus.mesh.scale.set(swell + jitter, swell * (1 + jitter), swell - jitter);
+  points.push([g.doorX + (g.dz ? lat * 0.3 : 0), g.doorZ + (g.dx ? lat * 0.3 : 0)]);
+  const lengths = [0];
+  for (let i = 1; i < points.length; i++) lengths.push(lengths[i - 1] + Math.hypot(points[i][0] - points[i - 1][0], points[i][1] - points[i - 1][1]));
+  return { points, lengths, total: lengths[lengths.length - 1] };
+}
+function sample(path, u) {
+  let i = 1;
+  while (i < path.lengths.length - 1 && path.lengths[i] < u) i++;
+  const span = path.lengths[i] - path.lengths[i - 1] || 1, f = Math.min(1, (u - path.lengths[i - 1]) / span);
+  return [path.points[i - 1][0] + (path.points[i][0] - path.points[i - 1][0]) * f, path.points[i - 1][1] + (path.points[i][1] - path.points[i - 1][1]) * f];
+}
+
+function snapshot() {
+  const rivers = lines.map((line) => {
+    const blocks = [];
+    let lastBlock = null;
+    line.forEach((p) => {
+      if (p.block !== lastBlock) blocks.push([p.c, 0]);
+      blocks[blocks.length - 1][1]++;
+      lastBlock = p.block;
+    });
+    return blocks;
   });
+  return {
+    rivers,
+    lanes: depot.map((lane) => lane.map((b) => ({ id: b.id, c: b.c, n: b.n * UNIT }))),
+    stops: [0, 1, 2, 3].map((i) => {
+      const b = stops[i] && stops[i].bus;
+      return { bus: b ? { id: b.id, c: b.c, n: b.seats, fill: b.claimed } : null, plat: [0, 0, 0, 0] };
+    }),
+    k: discs.map((d) => d.k % 2),
+    gone: [],
+    moves: 0
+  };
+}
+function callLane(lane) {
+  const bus = depot[lane][0];
+  if (!bus || phase === 'over' || phase === 'done') return;
+  const i = flowStop(snapshot(), { c: bus.c, n: bus.n * UNIT });
+  if (i === null) { hint(stops.some((st) => !st.bus) ? 'This bus needs a side stop' : 'All stops are taken'); tone(90, 0.15, 0.2); return; }
+  hint('');
+  depot[lane].shift();
+  bus.label.remove();
+  const g = GEO[i], x0 = bus.mesh.position.x;
+  const path = i === 0
+    ? [[x0, AISLE], [0, AISLE], [g.parkX, g.parkZ]]
+    : [[x0, AISLE], [g.dx * 15, AISLE], [g.dx * 16, g.z, true], [g.parkX, g.parkZ]];
+  stops[i].bus = { id: bus.id, mesh: bus.mesh, c: bus.c, seats: bus.n * UNIT, claimed: 0, fill: 0, parked: false, squash: 0, path, size: FRONT_SCALE, face: 0 };
+  tone(330, 0.1, 0.1);
+}
+function parkNow(i, instant) {
+  const g = GEO[i], b = stops[i].bus;
+  b.mesh.position.set(g.parkX, 0.1, g.parkZ);
+  b.parked = true;
+  b.path = [];
+  if (instant) { b.size = 1; b.mesh.rotation.y = g.dz ? Math.PI / 2 : 0; }
+}
+let hintTimer;
+function hint(text) {
+  el('hint').textContent = text;
+  el('hint').style.display = text ? '' : 'none';
+  clearTimeout(hintTimer);
+  if (text) hintTimer = setTimeout(() => hint(''), 1500);
+}
+function updateLeft() { el('left').textContent = `${TOTAL - boarded} left`; }
 
-  for (let i = flyers.length - 1; i >= 0; i--) {
-    const f = flyers[i];
-    f.speed += dt * 150;
-    f.mesh.position.x += f.dx * f.speed * dt;
-    f.mesh.position.z += f.dz * f.speed * dt;
-    if (Math.abs(f.mesh.position.x) + Math.abs(f.mesh.position.z) > 60) {
-      scene.remove(f.mesh);
-      flyers.splice(i, 1);
+function twist(index) {
+  if (phase !== 'playing') return;
+  discs[index].k++;
+  discs[index].vel += 9;
+  tone(190, 0.14, 0.13);
+}
+
+function showCombo() {
+  const node = el('combo');
+  if (combo < 2) { node.style.opacity = 0; return; }
+  node.textContent = `Combo ×${combo}`;
+  node.style.opacity = 1;
+  node.classList.remove('pop');
+  void node.offsetWidth;
+  node.classList.add('pop');
+}
+
+function releaseFlow(dt) {
+  let moved = false;
+  RIVERS.forEach((_, r) => {
+    acc[r] = Math.min(acc[r] + dt * RATE, 3);
+    while (acc[r] >= 1) {
+      const head = lines[r][0];
+      if (!head || head.s > GATE + 1) break;
+      const i = routeOf(r), stop = i === null ? null : stops[i];
+      if (!stop || !wants(stop, head.c)) { acc[r] = 0; break; }
+      acc[r] -= 1;
+      lines[r].shift();
+      stop.bus.claimed++;
+      head.state = 'run';
+      head.stop = stop;
+      head.path = buildPath(head, i);
+      head.u = 0;
+      runners++;
+      moved = true;
     }
+  });
+  if (moved) sinceFlow = 0;
+  else {
+    sinceFlow += dt;
+    if (sinceFlow > STALL && combo > 0) { combo = 0; showCombo(); }
   }
+}
 
-  bits = bits.filter((b) => {
+function board(p) {
+  const stop = p.stop, b = stop.bus;
+  p.state = 'gone';
+  runners--;
+  boarded++;
+  sinceFlow = 0;
+  b.fill++;
+  b.squash = 1;
+  updateLeft();
+  if (performance.now() - lastTick > 45) { lastTick = performance.now(); tone(380 + b.fill * 6, 0.07, 0.05); }
+  if (b.fill === b.seats) sendOff(stop);
+}
+function sendOff(stop) {
+  const b = stop.bus, g = GEO[stops.indexOf(stop)];
+  burst(b.mesh.position.x, 2, b.mesh.position.z, 0xFFC233, 20);
+  flying.push({ mesh: b.mesh, dx: g.dx, dz: g.dz, v: -3 });
+  stop.bus = null;
+  combo++;
+  bestCombo = Math.max(bestCombo, combo);
+  showCombo();
+  shake = Math.max(shake, 0.3);
+  const lift = Math.min(combo, 8) * 45;
+  [523, 659, 784].forEach((f, i) => setTimeout(() => tone(f + lift, 0.2, 0.12), i * 70));
+  if (boarded === TOTAL) {
+    phase = 'done';
+    setTimeout(() => finish(true), 900);
+  }
+}
+function finish(won) {
+  phase = 'over';
+  el('stars').textContent = won ? '★'.repeat(bestCombo >= 7 ? 3 : bestCombo >= 4 ? 2 : 1).padEnd(3, '☆') : '';
+  el('endTitle').textContent = won ? 'All aboard!' : 'No way out';
+  el('endText').textContent = won ? `${TOTAL} people home. Best combo ×${bestCombo}.` : "This crowd can't all get home now. Try a different bus order.";
+  el('end').style.display = 'flex';
+  tone(won ? 784 : 120, 0.4, 0.2);
+}
+function isStuck() {
+  if (runners > 0 || stops.some((st) => st.bus && !st.bus.parked)) return false;
+  const now = snapshot(), sig = flowKey(now);
+  if (sig === lastSig) return false;
+  lastSig = sig;
+  return !canWin(now);
+}
+
+function drawPeople(dt, time) {
+  lines.forEach((line) => layoutLine(line));
+  people.forEach((p) => {
+    let x, z, y = 0.39, scale = 1;
+    if (p.state === 'gone') { scale = 0; x = z = 0; }
+    else if (p.state === 'line') {
+      p.s = Math.max(p.target, p.s - (phase === 'playing' ? WALK * dt : 0));
+      [x, z] = linePos(p);
+      y += Math.abs(Math.sin(time * 9 + p.bob)) * 0.05;
+    } else if (p.state === 'run') {
+      p.u += RUN * dt;
+      [x, z] = sample(p.path, p.u);
+      p.x = x; p.z = z;
+      y += Math.abs(Math.sin(time * 15 + p.bob)) * 0.16;
+      if (p.u >= p.path.total) { p.state = 'hop'; p.hop = 0; p.hx = x; p.hz = z; }
+    } else {
+      p.hop += dt * 5;
+      const t = Math.min(1, p.hop), m = p.stop.bus.mesh.position;
+      x = p.hx + (m.x - p.hx) * t;
+      z = p.hz + (m.z - p.hz) * t;
+      y = 0.39 + Math.sin(t * Math.PI) * 1.1;
+      scale = 1 - t * 0.6;
+      if (t === 1) { board(p); scale = 0; }
+    }
+    scratch.position.set(x, y, z);
+    scratch.rotation.set(0, 0, 0);
+    scratch.scale.setScalar(scale);
+    scratch.updateMatrix();
+    bodies.setMatrixAt(p.id, scratch.matrix);
+    scratch.position.y = y + 0.33 * scale;
+    scratch.updateMatrix();
+    heads.setMatrixAt(p.id, scratch.matrix);
+  });
+  bodies.instanceMatrix.needsUpdate = heads.instanceMatrix.needsUpdate = true;
+}
+
+function drawBuses(dt, time) {
+  stops.forEach((stop, i) => {
+    const b = stop.bus, g = GEO[i];
+    if (!b) return;
+    if (!b.parked) {
+      let left = DRIVE * dt;
+      while (left > 0 && b.path.length) {
+        const [tx, tz, jump] = b.path[0], m = b.mesh.position;
+        if (jump) { m.set(tx, 0.1, tz); b.path.shift(); continue; }
+        const dx = tx - m.x, dz = tz - m.z, d = Math.hypot(dx, dz);
+        if (d > 0.001) b.face = Math.atan2(dx, dz);
+        m.y = 0.1;
+        if (d <= left) { m.x = tx; m.z = tz; left -= d; b.path.shift(); }
+        else { m.x += dx / d * left; m.z += dz / d * left; left = 0; }
+      }
+      if (!b.path.length) { parkNow(i); b.squash = 1; }
+    }
+    const want = b.parked ? (g.dz ? Math.PI / 2 : 0) : b.face;
+    let turn = (want - b.mesh.rotation.y) % Math.PI;
+    if (turn > Math.PI / 2) turn -= Math.PI;
+    if (turn < -Math.PI / 2) turn += Math.PI;
+    b.mesh.rotation.y += turn * Math.min(1, dt * 14);
+    b.size = Math.min(1, b.size + dt * 2.4);
+    b.squash = Math.max(0, b.squash - dt * 7);
+    const wob = Math.sin(time * 34) * b.squash * 0.05, fat = 1 + b.fill / b.seats * 0.08;
+    b.mesh.scale.set(b.size * (fat + wob), b.size * fat * (1 - wob), b.size * (fat + wob));
+  });
+  for (let i = flying.length - 1; i >= 0; i--) {
+    const f = flying[i];
+    f.v += dt * 90;
+    f.mesh.position.x += f.dx * f.v * dt;
+    f.mesh.position.z += f.dz * f.v * dt;
+    if (Math.abs(f.mesh.position.x) + Math.abs(f.mesh.position.z) > 60) { scene.remove(f.mesh); flying.splice(i, 1); }
+  }
+}
+function drawLot(dt, time) {
+  const canLeave = phase === 'playing' && stops.some((s) => !s.bus);
+  depot.forEach((lane, l) => lane.forEach((b, j) => {
+    const m = b.mesh.position, hop = j === 0 && canLeave ? Math.abs(Math.sin(time * 6)) * 0.35 : 0;
+    m.z += (LOT_FRONT - j * LOT_PITCH - m.z) * Math.min(1, dt * 10);
+    m.y = 0.1 + hop;
+    const size = b.mesh.scale.x + ((j === 0 ? FRONT_SCALE : LOT_SCALE) - b.mesh.scale.x) * Math.min(1, dt * 10);
+    b.mesh.scale.setScalar(size);
+    b.label.classList.toggle('front', j === 0);
+    place(b.label, m.x, 2 * size + hop, m.z);
+  }));
+}
+function drawPops(dt) {
+  const m = new THREE.Matrix4();
+  popBits.forEach((b, i) => {
+    if (b.life <= 0) return;
     b.life -= dt;
-    b.vy -= dt * 30;
-    b.mesh.position.x += b.vx * dt;
-    b.mesh.position.y = Math.max(0.05, b.mesh.position.y + b.vy * dt);
-    b.mesh.position.z += b.vz * dt;
-    b.mesh.rotation.x += dt * 16;
-    if (b.life <= 0) { scene.remove(b.mesh); return false; }
-    return true;
+    b.vy -= dt * 20;
+    b.x += b.vx * dt;
+    b.y = Math.max(0.2, b.y + b.vy * dt);
+    b.z += b.vz * dt;
+    pops.setMatrixAt(i, b.life <= 0 ? m.makeScale(0, 0, 0) : m.makeTranslation(b.x, b.y, b.z));
   });
+  pops.instanceMatrix.needsUpdate = true;
+}
+function updateLabels() {
+  if (!labels.pills) return;
+  stops.forEach((stop, i) => {
+    const pill = labels.pills[i], b = stop.bus, g = GEO[i];
+    pill.style.display = b && b.parked ? '' : 'none';
+    if (b && b.parked) {
+      pill.firstChild.textContent = `${b.fill}/${b.seats}`;
+      const bar = pill.querySelector('i');
+      bar.style.width = b.fill / b.seats * 100 + '%';
+      bar.style.background = COLOURS[b.c].css;
+      if (g.dz) place(pill, b.mesh.position.x - 3.1, 0.2, b.mesh.position.z);
+      else place(pill, b.mesh.position.x, 0.2, b.mesh.position.z - 3.15);
+    }
+    const dot = labels.dots[i], from = phase === 'playing' ? [0, 1, 2].find((r) => lines[r][0] && routeOf(r) === i) : undefined;
+    dot.style.display = from === undefined ? 'none' : '';
+    if (from !== undefined) { dot.style.background = COLOURS[lines[from][0].c].css; place(dot, g.doorX, 0.4, g.doorZ); }
+  });
+  RIVERS.forEach((_, r) => {
+    const box = labels.blocks[r], parts = [];
+    lines[r].forEach((p) => {
+      const last = parts[parts.length - 1];
+      if (last && last.block === p.block) last.n++; else parts.push({ block: p.block, c: p.c, n: 1 });
+    });
+    const html = parts.map((b) => `<i style="background:${COLOURS[b.c].css}">${b.n}</i>`).join('');
+    if (html !== lastBlocks[r]) { box.innerHTML = html; lastBlocks[r] = html; }
+    box.style.display = html ? '' : 'none';
+    if (r === 0) place(box, 7.6, 0.2, -9.3);
+    else if (r === 1) place(box, -7.6, 0.2, -9.3);
+    else place(box, 4.4, 0.2, 13.6);
+  });
+}
 
-  shake = Math.max(0, shake - dt * 2.2);
+function update(dt) {
+  const time = performance.now() / 1000;
+  discs.forEach((d) => {
+    d.vel += (d.k * Math.PI / 2 - d.spin) * 220 * dt - d.vel * 18 * dt;
+    d.spin += d.vel * dt;
+    d.spinner.rotation.y = -d.spin;
+  });
+  if (phase === 'countdown') {
+    const before = Math.ceil(countdown);
+    countdown -= dt;
+    const shown = Math.ceil(countdown);
+    if (countdown <= 0) {
+      phase = 'playing';
+      el('count3').textContent = 'Go!';
+      tone(784, 0.3, 0.2);
+      setTimeout(() => { if (el('count3').textContent === 'Go!') el('count3').textContent = ''; }, 500);
+    } else if (shown !== before || el('count3').textContent === '') {
+      el('count3').textContent = shown;
+      tone(392, 0.16, 0.16);
+    }
+  }
+  if (phase === 'playing') releaseFlow(dt);
+  drawPeople(dt, time);
+  drawBuses(dt, time);
+  drawLot(dt, time);
+  drawPops(dt);
+  updateLabels();
+  if (phase === 'playing' && isStuck()) finish(false);
+  shake = Math.max(0, shake - dt * 1.6);
   camera.position.copy(camera.userData.base);
   camera.position.x += (Math.random() - 0.5) * shake;
   camera.position.z += (Math.random() - 0.5) * shake;
@@ -1646,54 +627,49 @@ function step(dt, time) {
 }
 
 function resize() {
-  const aspect = innerWidth / innerHeight;
-  const tan = Math.tan(THREE.MathUtils.degToRad(15));
-  const [viewW, viewH] = layout.view;
-  const distance = Math.max(viewW / (2 * tan * aspect), viewH / (2 * tan));
-  camera.userData.look = new THREE.Vector3(layout.look[0], 0, layout.look[1]);
-  camera.userData.base = new THREE.Vector3(0, 0.93, 0.36).normalize().multiplyScalar(distance).add(camera.userData.look);
+  const aspect = innerWidth / innerHeight, tan = Math.tan(THREE.MathUtils.degToRad(14));
+  const distance = Math.max(21 / (2 * tan * aspect), 47 / (2 * tan));
+  camera.userData.look = new THREE.Vector3(0, 0, -6.5);
+  camera.userData.base = new THREE.Vector3(0, 0.95, 0.31).normalize().multiplyScalar(distance).add(camera.userData.look);
   camera.aspect = aspect;
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
 }
-
-const raycaster = new THREE.Raycaster();
-const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-
-renderer.domElement.addEventListener('pointerdown', (e) => {
+function begin() {
+  el('start').style.display = 'none';
+  el('end').style.display = 'none';
   audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+  audio.resume();
+  phase = 'countdown';
+  countdown = 3;
+  reset();
+}
+
+const raycaster = new THREE.Raycaster(), floorPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+renderer.domElement.addEventListener('pointerdown', (e) => {
   raycaster.setFromCamera({ x: e.clientX / innerWidth * 2 - 1, y: 1 - e.clientY / innerHeight * 2 }, camera);
-  const point = raycaster.ray.intersectPlane(groundPlane, new THREE.Vector3());
+  const point = raycaster.ray.intersectPlane(floorPlane, new THREE.Vector3());
   if (!point) return;
-  let nearest = 0, best = Infinity;
-  discs.forEach((d, i) => {
-    const distance = Math.hypot(point.x - d.x, point.z - d.z);
-    if (distance < best) { best = distance; nearest = i; }
-  });
-  twist(nearest);
+  for (let l = 0; l < 3; l++) {
+    const front = depot[l][0];
+    if (!front) continue;
+    const p = front.mesh.position;
+    if (Math.abs(point.x - p.x) < 1.8 && Math.abs(point.z - p.z) < 2) { if (phase === 'playing') callLane(l); return; }
+    if (Math.abs(point.x - p.x) < 1.8 && point.z < p.z && depot[l].length > 1) { hint('Only the front bus can leave'); tone(90, 0.15, 0.2); return; }
+  }
+  discs.forEach((d, i) => { if (Math.hypot(point.x - d.x, point.z - d.z) < 4.6) twist(i); });
 });
 addEventListener('resize', resize);
-document.getElementById('next').onclick = nextLevel;
-Object.keys(POWER_LABELS).forEach((key) => { document.getElementById(key).onclick = () => usePower(key); });
-document.getElementById('levelsButton').onclick = openLevels;
-document.getElementById('endLevels').onclick = openLevels;
-document.getElementById('closeLevels').onclick = closeLevels;
-document.getElementById('cardOk').onclick = closeCard;
-document.getElementById('build').onclick = buyBuilding;
-document.getElementById('buyFlush').onclick = () => buyExtra('flush');
-document.getElementById('buySlow').onclick = () => buyExtra('slow');
-document.getElementById('newGame').onclick = () => { if (confirm('Start over and lose your city?')) newGame(); };
+el('play').onclick = begin;
+el('again').onclick = begin;
+el('restart').onclick = () => { if (phase === 'playing' || phase === 'countdown') begin(); };
 
-loadSave();
-layout = layoutFor(LEVELS[level].layoutKey);
-buildRoads(LEVELS[level]);
-Object.keys(owned).forEach((id) => placeLandmark(id, false));
 resize();
-startLevel(level);
-
+phase = 'menu';
+reset();
 let last = performance.now();
 function frame(now) {
-  if (!paused) step(Math.min((now - last) / 1000, 0.05), now / 1000);
+  update(Math.min((now - last) / 1000, 0.05));
   last = now;
   renderer.render(scene, camera);
   requestAnimationFrame(frame);
