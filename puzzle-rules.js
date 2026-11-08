@@ -135,11 +135,15 @@ function isJammed(s, cfg) {
 
 const FLOW_CFG = { bridge: true, bay: false, caps: [0, 0, 0, 0], unchain: false };
 
-function flowStop(s, bus) {
+function allowedStops(s, bus) {
   const free = [STOP_N, STOP_E, STOP_W].filter((i) => !s.stops[i].bus);
   const inRiver = (r) => s.rivers[r].reduce((n, [c, k]) => (c === bus.c ? n + k : n), 0);
   // The south river cannot reach the north stop.
-  const allowed = free.filter((i) => i !== STOP_N || inRiver(RIVER_E) + inRiver(RIVER_W) >= bus.n);
+  return free.filter((i) => i !== STOP_N || inRiver(RIVER_E) + inRiver(RIVER_W) >= bus.n);
+}
+
+function flowStop(s, bus) {
+  const allowed = allowedStops(s, bus);
   for (const i of allowed) for (let r = 0; r < 3; r++) if (s.rivers[r][0] && s.rivers[r][0][0] === bus.c && routeStop(r, s, FLOW_CFG) === i) return i;
   return allowed.length ? allowed[0] : null;
 }
@@ -154,4 +158,4 @@ function flowMoves(s) {
   return out;
 }
 
-if (typeof module !== 'undefined') module.exports = { RIVER_E, RIVER_W, RIVER_S, STOP_N, STOP_E, STOP_W, STOP_BAY, routeStop, newState, clone, platUsed, settle, canCall, legalMoves, apply, isWon, isJammed, FLOW_CFG, flowStop, flowMoves };
+if (typeof module !== 'undefined') module.exports = { RIVER_E, RIVER_W, RIVER_S, STOP_N, STOP_E, STOP_W, STOP_BAY, routeStop, newState, clone, platUsed, settle, canCall, legalMoves, apply, isWon, isJammed, FLOW_CFG, allowedStops, flowStop, flowMoves };

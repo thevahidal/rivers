@@ -28,6 +28,7 @@
   .blocks.right { justify-content: flex-end; }
   .blocks i { min-width: 26px; height: 22px; padding: 0 3px; box-sizing: border-box; border-radius: 7px; color: #fff; font-size: 13px; font-style: normal; font-weight: 800; text-align: center; line-height: 22px; }
   .blocks i:first-child { outline: 2px solid #fff; }
+  .here { height: 44px; padding: 0 16px; border-radius: 20px; background: #FFC233; box-shadow: 0 4px 0 #CC9410; font-size: 19px; font-weight: 800; line-height: 44px; pointer-events: auto; cursor: pointer; }
   .dot { width: 20px; height: 20px; border: 3px solid #fff; border-radius: 50%; box-shadow: 0 2px 0 rgba(36,50,74,.25); }
   .screen { position: fixed; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(36, 50, 74, .5); }
   .card { width: min(88vw, 350px); padding: 24px 20px; box-sizing: border-box; border-radius: 30px; background: #fff; box-shadow: 0 10px 0 #C6D2E3; text-align: center; }
@@ -48,11 +49,12 @@
 <div id="end" class="screen" style="display:none"><div class="card"><div id="stars" class="stars"></div><h1 id="endTitle"></h1><p id="endText"></p><button id="again" class="big">Play again</button></div></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="puzzle-rules.js?v=2"></script>
+<script src="puzzle-rules.js?v=3"></script>
 <script>
 const STAGE = {"rivers":[[[2,3],[3,3],[3,3],[2,3],[0,4]],[[0,3],[1,3],[2,3],[1,5],[2,3]],[[3,3],[3,3],[1,4],[0,5]]],"lanes":[[{"id":8,"c":3,"n":4},{"id":5,"c":2,"n":5},{"id":9,"c":3,"n":4},{"id":7,"c":3,"n":4},{"id":0,"c":0,"n":5}],[{"id":1,"c":0,"n":7},{"id":2,"c":1,"n":4},{"id":4,"c":1,"n":4}],[{"id":3,"c":1,"n":4},{"id":6,"c":2,"n":7}]]};
 const UNIT = 10, R = 2.6, GATE = R + 0.5, LANES = 3, ROW = 0.46, GAP = 0.5, WALK = 6.5, RUN = 8.5, RATE = 36, STALL = 3;
-const LOT_X = [-6, 0, 6], LOT_FRONT = -21, LOT_PITCH = 2.6, LOT_SCALE = 0.62, FRONT_SCALE = 0.86, AISLE = -18.3, DRIVE = 34;
+const LOT_X = [-6, 0, 6], LOT_FRONT = -21, LOT_PITCH = 2.6, LOT_SCALE = 0.62, FRONT_SCALE = 0.86, AISLE = -18.3, DRIVE = 30, ACCEL = 60, BRAKE = 45;
+let FAR = 28;
 const N = 0, E = 1, S = 2, W = 3;
 const PORT = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 const COLOURS = [
@@ -122,9 +124,9 @@ addRoad(24, -6.4, 42, 2.5);
 addRoad(-24, -6.4, 42, 2.5);
 addRoad(0, 28, 2.5, 38);
 addRoad(0, -14, 2.5, 9);
-addRoad(8, 6.4, 9.5, 2.5);
-addRoad(-8, 6.4, 9.5, 2.5);
-addRoad(0, AISLE, 36, 2.5);
+addRoad(18, 6.4, 29.5, 2.5);
+addRoad(-18, 6.4, 29.5, 2.5);
+addRoad(0, AISLE, 66, 2.5);
 scene.add(part(new THREE.BoxGeometry(22, 0.06, 15), paint(0xD9DFD6, 0.9), 0, 0.03, -27.2, false));
 [-3, 3].forEach((x) => scene.add(part(new THREE.BoxGeometry(0.14, 0.05, 15), paint(0xFFFFFF, 0.8), x, 0.08, -27.2, false)));
 
@@ -158,7 +160,7 @@ function tree(x, z, s) {
 
 const GEO = STOPS.map((s) => {
   const [dx, dz] = PORT[s.port], [x, z] = DISCS[s.disc];
-  return { dx, dz, x, z, doorX: x + dx * (R + 2.15), doorZ: z + dz * (R + 2.15), parkX: x + dx * (R + 3.3), parkZ: z + dz * (R + 3.3) };
+  return { dx, dz, x, z, doorX: x + dx * (R + 1.9), doorZ: z + dz * (R + 1.9), parkX: x + dx * (R + 4.3), parkZ: z + dz * (R + 4.3), parkTurn: dz ? 0 : Math.PI / 2 };
 });
 
 function makeBus(c) {
@@ -194,7 +196,7 @@ let nextPop = 0;
 const el = (id) => document.getElementById(id);
 const scratch = new THREE.Object3D(), paintColor = new THREE.Color();
 let audio, phase = 'menu', countdown = 0, people = [], lines = [[], [], []], acc = [0, 0, 0], stops = [], depot = [], flying = [];
-let boarded = 0, runners = 0, shake = 0, combo = 0, bestCombo = 0, sinceFlow = 0, labels = {}, lastBlocks = ['', '', ''], lastTick = 0;
+let boarded = 0, runners = 0, shake = 0, combo = 0, bestCombo = 0, sinceFlow = 0, labels = {}, lastBlocks = ['', '', ''], lastTick = 0, picked = null;
 
 function tone(freq, length, volume) {
   if (!audio) return;
@@ -248,6 +250,7 @@ function reset() {
     return { ...b, mesh };
   }));
   boarded = runners = combo = bestCombo = sinceFlow = 0;
+  picked = null;
   acc = [0, 0, 0];
   lastBlocks = ['', '', ''];
   people = [];
@@ -269,12 +272,17 @@ function reset() {
   labels = {
     pills: STOPS.map(() => pin('pill', '<span></span><div class="bar"><i></i></div>')),
     dots: STOPS.map(() => pin('dot', '')),
+    here: STOPS.map((_, i) => {
+      const node = pin('here', 'Here');
+      node.onclick = () => { if (picked !== null && phase === 'playing') sendBus(picked, i); };
+      return node;
+    }),
     blocks: RIVERS.map((_, r) => pin('blocks' + (r === 1 ? ' right' : ''), ''))
   };
   depot.flat().forEach((b) => { b.label = pin('seat', b.n * UNIT); });
   el('combo').style.opacity = 0;
   hint('');
-  [0, 1, 2].forEach(callLane);
+  [0, 1, 2].forEach((lane) => sendBus(lane, flowStop(snapshot(), seatsOf(depot[lane][0]))));
   stops.forEach((s, i) => { if (s.bus) parkNow(i, true); });
   updateLeft();
 }
@@ -343,19 +351,78 @@ function snapshot() {
     moves: 0
   };
 }
+function roundCorners(points, radius = 1.6) {
+  const out = [points[0]];
+  for (let i = 1; i < points.length - 1; i++) {
+    const [px, pz] = points[i - 1], [cx, cz] = points[i], [nx, nz] = points[i + 1];
+    const inLen = Math.hypot(cx - px, cz - pz), outLen = Math.hypot(nx - cx, nz - cz);
+    if (inLen < 0.01 || outLen < 0.01) continue;
+    const r = Math.min(radius, inLen / 2, outLen / 2);
+    const a = [cx - (cx - px) / inLen * r, cz - (cz - pz) / inLen * r], b = [cx + (nx - cx) / outLen * r, cz + (nz - cz) / outLen * r];
+    for (let t = 0; t <= 8; t++) {
+      const u = t / 8, v = 1 - u;
+      out.push([v * v * a[0] + 2 * v * u * cx + u * u * b[0], v * v * a[1] + 2 * v * u * cz + u * u * b[1]]);
+    }
+  }
+  out.push(points[points.length - 1]);
+  return out.slice(1);
+}
+function stepAlong(o, dt, brake) {
+  const m = o.mesh.position;
+  o.speed = Math.min(DRIVE, o.speed + ACCEL * dt);
+  let v = o.speed;
+  if (brake) {
+    let rem = 0, x = m.x, z = m.z;
+    for (const [tx, tz, jump] of o.path) {
+      if (jump) { rem = Infinity; break; }
+      rem += Math.hypot(tx - x, tz - z);
+      x = tx; z = tz;
+    }
+    v = Math.min(v, Math.sqrt(2 * BRAKE * rem) + 2);
+  }
+  let left = v * dt;
+  while (left > 0 && o.path.length) {
+    const [tx, tz, jump] = o.path[0];
+    if (jump) { m.x = tx; m.z = tz; o.path.shift(); continue; }
+    const dx = tx - m.x, dz = tz - m.z, d = Math.hypot(dx, dz);
+    if (d > 0.001) o.face = Math.atan2(dx, dz);
+    if (d <= left) { m.x = tx; m.z = tz; left -= d; o.path.shift(); }
+    else { m.x += dx / d * left; m.z += dz / d * left; left = 0; }
+  }
+  return !o.path.length;
+}
+function turnToward(mesh, want, dt) {
+  let turn = (want - mesh.rotation.y) % Math.PI;
+  if (turn > Math.PI / 2) turn -= Math.PI;
+  if (turn < -Math.PI / 2) turn += Math.PI;
+  mesh.rotation.y += turn * Math.min(1, dt * 18);
+}
+const seatsOf = (bus) => ({ c: bus.c, n: bus.n * UNIT });
 function callLane(lane) {
   const bus = depot[lane][0];
-  if (!bus || phase === 'over' || phase === 'done') return;
-  const i = flowStop(snapshot(), { c: bus.c, n: bus.n * UNIT });
-  if (i === null) { hint(stops.some((st) => !st.bus) ? 'This bus needs a side stop' : 'All stops are taken'); tone(90, 0.15, 0.2); return; }
+  if (!bus || phase !== 'playing') return;
+  if (picked === lane) { picked = null; return; }
+  const options = allowedStops(snapshot(), seatsOf(bus));
+  if (!options.length) {
+    picked = null;
+    hint(stops.some((st) => !st.bus) ? 'This bus needs a side stop' : 'All stops are taken');
+    tone(90, 0.15, 0.2);
+    return;
+  }
+  if (options.length === 1) { sendBus(lane, options[0]); return; }
+  picked = lane;
+  tone(260, 0.08, 0.08);
+}
+function sendBus(lane, i) {
+  picked = null;
   hint('');
-  depot[lane].shift();
+  const bus = depot[lane].shift();
   bus.label.remove();
-  const g = GEO[i], x0 = bus.mesh.position.x;
+  const g = GEO[i], from = [bus.mesh.position.x, bus.mesh.position.z];
   const path = i === 0
-    ? [[x0, AISLE], [0, AISLE], [g.parkX, g.parkZ]]
-    : [[x0, AISLE], [g.dx * 15, AISLE], [g.dx * 16, g.z, true], [g.parkX, g.parkZ]];
-  stops[i].bus = { id: bus.id, mesh: bus.mesh, c: bus.c, seats: bus.n * UNIT, claimed: 0, fill: 0, parked: false, squash: 0, path, size: FRONT_SCALE, face: 0 };
+    ? roundCorners([from, [from[0], AISLE], [0, AISLE], [g.parkX, g.parkZ]])
+    : roundCorners([from, [from[0], AISLE], [g.dx * FAR, AISLE]]).concat([[g.dx * FAR, g.z, true], [g.parkX, g.parkZ]]);
+  stops[i].bus = { id: bus.id, mesh: bus.mesh, c: bus.c, seats: bus.n * UNIT, claimed: 0, fill: 0, parked: false, squash: 0, path, size: FRONT_SCALE, face: 0, speed: 0 };
   tone(330, 0.1, 0.1);
 }
 function parkNow(i, instant) {
@@ -363,7 +430,7 @@ function parkNow(i, instant) {
   b.mesh.position.set(g.parkX, 0.1, g.parkZ);
   b.parked = true;
   b.path = [];
-  if (instant) { b.size = 1; b.mesh.rotation.y = g.dz ? Math.PI / 2 : 0; }
+  if (instant) { b.size = 1; b.mesh.rotation.y = g.parkTurn; }
 }
 let hintTimer;
 function hint(text) {
@@ -411,7 +478,7 @@ function releaseFlow(dt) {
       moved = true;
     }
   });
-  if (moved) sinceFlow = 0;
+  if (moved || stops.some((st) => st.bus && !st.bus.parked)) sinceFlow = 0;
   else {
     sinceFlow += dt;
     if (sinceFlow > STALL && combo > 0) { combo = 0; showCombo(); }
@@ -431,9 +498,10 @@ function board(p) {
   if (b.fill === b.seats) sendOff(stop);
 }
 function sendOff(stop) {
-  const b = stop.bus, g = GEO[stops.indexOf(stop)];
+  const b = stop.bus, i = stops.indexOf(stop), g = GEO[i], m = b.mesh.position;
   burst(b.mesh.position.x, 2, b.mesh.position.z, 0xFFC233, 20);
-  flying.push({ mesh: b.mesh, dx: g.dx, dz: g.dz, v: -3 });
+  const path = i === 0 ? roundCorners([[m.x, m.z], [0, AISLE], [FAR, AISLE]]) : [[g.dx * FAR, g.z]];
+  flying.push({ mesh: b.mesh, path, speed: 0, face: g.parkTurn });
   stop.bus = null;
   combo++;
   bestCombo = Math.max(bestCombo, combo);
@@ -506,23 +574,10 @@ function drawBuses(dt, time) {
     const b = stop.bus, g = GEO[i];
     if (!b) return;
     if (!b.parked) {
-      let left = DRIVE * dt;
-      while (left > 0 && b.path.length) {
-        const [tx, tz, jump] = b.path[0], m = b.mesh.position;
-        if (jump) { m.set(tx, 0.1, tz); b.path.shift(); continue; }
-        const dx = tx - m.x, dz = tz - m.z, d = Math.hypot(dx, dz);
-        if (d > 0.001) b.face = Math.atan2(dx, dz);
-        m.y = 0.1;
-        if (d <= left) { m.x = tx; m.z = tz; left -= d; b.path.shift(); }
-        else { m.x += dx / d * left; m.z += dz / d * left; left = 0; }
-      }
-      if (!b.path.length) { parkNow(i); b.squash = 1; }
+      b.mesh.position.y = 0.1;
+      if (stepAlong(b, dt, true)) { parkNow(i); b.squash = 1; b.face = g.parkTurn; }
     }
-    const want = b.parked ? (g.dz ? Math.PI / 2 : 0) : b.face;
-    let turn = (want - b.mesh.rotation.y) % Math.PI;
-    if (turn > Math.PI / 2) turn -= Math.PI;
-    if (turn < -Math.PI / 2) turn += Math.PI;
-    b.mesh.rotation.y += turn * Math.min(1, dt * 14);
+    turnToward(b.mesh, b.parked ? g.parkTurn : b.face, dt);
     b.size = Math.min(1, b.size + dt * 2.4);
     b.squash = Math.max(0, b.squash - dt * 7);
     const wob = Math.sin(time * 34) * b.squash * 0.05, fat = 1 + b.fill / b.seats * 0.08;
@@ -530,16 +585,16 @@ function drawBuses(dt, time) {
   });
   for (let i = flying.length - 1; i >= 0; i--) {
     const f = flying[i];
-    f.v += dt * 90;
-    f.mesh.position.x += f.dx * f.v * dt;
-    f.mesh.position.z += f.dz * f.v * dt;
-    if (Math.abs(f.mesh.position.x) + Math.abs(f.mesh.position.z) > 60) { scene.remove(f.mesh); flying.splice(i, 1); }
+    const done = stepAlong(f, dt, false);
+    turnToward(f.mesh, f.face, dt);
+    if (done) { scene.remove(f.mesh); flying.splice(i, 1); }
   }
 }
 function drawLot(dt, time) {
   const canLeave = phase === 'playing' && stops.some((s) => !s.bus);
   depot.forEach((lane, l) => lane.forEach((b, j) => {
-    const m = b.mesh.position, hop = j === 0 && canLeave ? Math.abs(Math.sin(time * 6)) * 0.35 : 0;
+    const m = b.mesh.position, chosen = picked === l && j === 0;
+    const hop = chosen ? 0.5 + Math.abs(Math.sin(time * 10)) * 0.5 : j === 0 && canLeave ? Math.abs(Math.sin(time * 6)) * 0.35 : 0;
     m.z += (LOT_FRONT - j * LOT_PITCH - m.z) * Math.min(1, dt * 10);
     m.y = 0.1 + hop;
     const size = b.mesh.scale.x + ((j === 0 ? FRONT_SCALE : LOT_SCALE) - b.mesh.scale.x) * Math.min(1, dt * 10);
@@ -563,6 +618,16 @@ function drawPops(dt) {
 }
 function updateLabels() {
   if (!labels.pills) return;
+  let options = [];
+  if (picked !== null && phase === 'playing') {
+    options = allowedStops(snapshot(), seatsOf(depot[picked][0]));
+    if (!options.length) picked = null;
+  }
+  STOPS.forEach((_, i) => {
+    const show = picked !== null && options.includes(i);
+    labels.here[i].style.display = show ? '' : 'none';
+    if (show) place(labels.here[i], GEO[i].parkX, 0.3, GEO[i].parkZ);
+  });
   stops.forEach((stop, i) => {
     const pill = labels.pills[i], b = stop.bus, g = GEO[i];
     pill.style.display = b && b.parked ? '' : 'none';
@@ -572,11 +637,12 @@ function updateLabels() {
       bar.style.width = b.fill / b.seats * 100 + '%';
       bar.style.background = COLOURS[b.c].css;
       if (g.dz) place(pill, b.mesh.position.x - 3.1, 0.2, b.mesh.position.z);
-      else place(pill, b.mesh.position.x, 0.2, b.mesh.position.z - 3.15);
+      else place(pill, b.mesh.position.x, 0.2, b.mesh.position.z - 2.3);
     }
     const dot = labels.dots[i], from = phase === 'playing' ? [0, 1, 2].find((r) => lines[r][0] && routeOf(r) === i) : undefined;
-    dot.style.display = from === undefined ? 'none' : '';
-    if (from !== undefined) { dot.style.background = COLOURS[lines[from][0].c].css; place(dot, g.doorX, 0.4, g.doorZ); }
+    const colour = b && b.claimed > b.fill ? b.c : from === undefined ? null : lines[from][0].c;
+    dot.style.display = colour === null ? 'none' : '';
+    if (colour !== null) { dot.style.background = COLOURS[colour].css; place(dot, g.doorX, 0.4, g.doorZ); }
   });
   RIVERS.forEach((_, r) => {
     const box = labels.blocks[r], parts = [];
@@ -634,6 +700,7 @@ function resize() {
   camera.userData.look = new THREE.Vector3(0, 0, -6.5);
   camera.userData.base = new THREE.Vector3(0, 0.95, 0.31).normalize().multiplyScalar(distance).add(camera.userData.look);
   camera.aspect = aspect;
+  FAR = Math.min(30, tan * distance * aspect + 3);
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
 }
