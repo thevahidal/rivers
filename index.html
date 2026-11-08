@@ -111,9 +111,9 @@ const THEMES = {
 const LEVELS = [
   {
     name: 'Dawn Village', layout: 'road', theme: 'village', start: [],
-    rivers: [[[BLUE, 6]]],
-    lanes: [[bus(0, BLUE, 3), bus(1, BLUE, 3)]],
-    hint: 'Tap the bus to call it',
+    rivers: [[[BLUE, 3], [ORANGE, 3]]],
+    lanes: [[bus(0, BLUE, 3), bus(1, ORANGE, 3)]],
+    hint: 'People only board their own colour. Tap the bus!',
     props: (p) => {
       [[-6.5, -11.5, 0xF7B2A0], [6.8, -12.5, 0xA7C7F2], [-7.2, -3.5, 0xF4D58A], [7.4, -2.5, 0xF7B2A0], [-6.8, 5.5, 0xA7C7F2], [7, 6.5, 0xF4D58A]].forEach(([x, z, c]) => p.house(x, z, c));
       [[-3.6, -14.5], [3.8, -8], [-3.7, -0.5], [3.7, 3], [-3.8, 9.5], [3.7, 12]].forEach(([x, z]) => p.tree(x, z, 1));
