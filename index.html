@@ -30,7 +30,8 @@
   .blocks i { min-width: 26px; height: 22px; padding: 0 3px; box-sizing: border-box; border-radius: 7px; color: #fff; font-size: 13px; font-style: normal; font-weight: 800; text-align: center; line-height: 22px; }
   .blocks i:first-child { outline: 2px solid #fff; }
   .here { height: 44px; padding: 0 16px; border-radius: 20px; background: #FFC233; box-shadow: 0 4px 0 #CC9410; font-size: 19px; font-weight: 800; line-height: 44px; pointer-events: auto; cursor: pointer; }
-  .dot { width: 20px; height: 20px; border: 3px solid #fff; border-radius: 50%; box-shadow: 0 2px 0 rgba(36,50,74,.25); }
+  .dot { width: 20px; height: 20px; border: 3px solid #fff; border-radius: 50%; box-shadow: 0 2px 0 rgba(36,50,74,.25); pointer-events: auto; cursor: pointer; }
+  .dot::after { content: ''; position: absolute; inset: -14px; }
   .screen { position: fixed; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(36, 50, 74, .55); }
   .card { width: min(90vw, 360px); max-height: 92vh; overflow: auto; padding: 22px 18px; box-sizing: border-box; border-radius: 30px; background: #fff; box-shadow: 0 10px 0 #C6D2E3; text-align: center; }
   .card h1 { margin: 0; font-size: 36px; font-weight: 800; line-height: 1.1; }
@@ -420,7 +421,11 @@ function reset() {
   el('labels').innerHTML = '';
   labels = {
     pills: GEO.map(() => pin('pill', '<span></span><div class="bar"><i></i></div>')),
-    dots: GEO.map(() => pin('dot', '')),
+    dots: GEO.map((_, i) => {
+      const node = pin('dot', '');
+      node.onclick = () => tapDot(i);
+      return node;
+    }),
     here: GEO.map((_, i) => {
       const node = pin('here', 'Here');
       node.onclick = () => { if (picked !== null && phase === 'playing') sendBus(picked, i); };
@@ -571,6 +576,30 @@ function callLane(lane) {
   if (options.length === 1) { sendBus(lane, options[0]); return; }
   picked = lane;
   tone(260, 0.08, 0.08);
+}
+function dotColour(i, view) {
+  const b = stops[i].bus;
+  if (b && b.claimed > b.fill) return b.c;
+  if (phase !== 'playing') return null;
+  const from = lines.findIndex((line, r) => line[0] && (layout.discs ? routeStop(r, view, CFG) === i : layout.reach[r].includes(i)));
+  return from < 0 ? null : lines[from][0].c;
+}
+function tapDot(i) {
+  if (phase !== 'playing' || stops[i].bus) return;
+  const now = snapshot();
+  if (picked !== null) {
+    if (allowedStops(now, seatsOf(depot[picked][0]), CFG).includes(i)) sendBus(picked, i);
+    return;
+  }
+  const colour = dotColour(i, routeView());
+  const lane = depot.findIndex((l) => l[0] && l[0].c === colour && allowedStops(now, seatsOf(l[0]), CFG).includes(i));
+  if (lane < 0) {
+    hint('No matching bus at the front');
+    tone(90, 0.15, 0.2);
+    return;
+  }
+  clearLevelHint();
+  sendBus(lane, i);
 }
 function sendBus(lane, i) {
   picked = null;
@@ -823,8 +852,7 @@ function updateLabels() {
       else place(pill, b.mesh.position.x, 0.2, b.mesh.position.z - 2.3);
     }
     const dot = labels.dots[i];
-    const from = phase === 'playing' ? lines.findIndex((line, r) => line[0] && (layout.discs ? routeStop(r, view, CFG) === i : layout.reach[r].includes(i))) : -1;
-    const colour = b && b.claimed > b.fill ? b.c : from < 0 ? null : lines[from][0].c;
+    const colour = dotColour(i, view);
     dot.style.display = colour === null ? 'none' : '';
     if (colour !== null) { dot.style.background = COLOURS[colour].css; place(dot, g.doorX, 0.4, g.doorZ); }
   });
