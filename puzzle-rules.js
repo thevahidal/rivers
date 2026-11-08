@@ -145,13 +145,22 @@ const LAYOUTS = {
     }
   },
   one: { stops: 2, discs: 1, reach: [[0, 1], [0, 1]], route: (r, s) => ((r === 0) === (s.k[0] === 0) ? 0 : 1) },
-  twin: { stops: 3, discs: 2, reach: [[0, 1, 2], [0, 1, 2], [1, 2]], route: (r, s) => routeStop(r, s, { bridge: true }) }
+  twin: { stops: 3, discs: 2, reach: [[0, 1, 2], [0, 1, 2], [1, 2]], route: (r, s) => routeStop(r, s, { bridge: true }) },
+  triple: {
+    stops: 4, discs: 3, reach: [[0, 1, 2], [0, 1, 2], [3, 1, 2], [3, 1, 2]],
+    route: (r, s) => {
+      const [a, b, c] = s.k;
+      if (r < 2) return (r === 0) === (a === 0) ? 0 : (b === 0 ? 1 : 2);
+      return (r === 2) === (c === 0) ? (b === 0 ? 2 : 1) : 3;
+    }
+  }
 };
 
 function allowedStops(s, bus, cfg) {
   const layout = LAYOUTS[cfg.layout];
   const stops = Array.from({ length: layout.stops }, (_, i) => i).filter((i) => !s.stops[i].bus);
-  const canSupply = (i) => s.rivers.reduce((sum, river, r) => (layout.reach[r] && layout.reach[r].includes(i) ? sum + river.reduce((n, [c, k]) => (c === bus.c ? n + k : n), 0) : sum), 0);
+  const returning = [...s.lanes.flat(), ...s.stops.map((st) => st.bus).filter(Boolean)].reduce((n, b) => (b.transfer && b.c === bus.c && b.id !== bus.id ? n + b.n : n), 0);
+  const canSupply = (i) => s.rivers.reduce((sum, river, r) => (layout.reach[r] && layout.reach[r].includes(i) ? sum + river.reduce((n, [c, k]) => (c === bus.c ? n + k : n), 0) : sum), layout.reach[2] && layout.reach[2].includes(i) ? returning : 0);
   return stops.filter((i) => canSupply(i) >= bus.n);
 }
 
@@ -165,7 +174,7 @@ function flowMoves(s, cfg) {
   const out = [];
   for (let d = 0; d < LAYOUTS[cfg.layout].discs; d++) out.push(['spin', d]);
   s.lanes.forEach((lane, l) => {
-    if (lane[0]) allowedStops(s, lane[0], cfg).forEach((i) => out.push(['call', l, i]));
+    if (lane[0] && canCall(s, l)) allowedStops(s, lane[0], cfg).forEach((i) => out.push(['call', l, i]));
   });
   return out;
 }
