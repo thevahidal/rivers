@@ -137,17 +137,17 @@ function isJammed(s, cfg) {
 const LAYOUTS = {
   road: { stops: 1, discs: 0, reach: [[0]], route: () => 0 },
   fork: {
-    stops: 2, discs: 0, reach: [[0, 1]],
+    stops: 2, discs: 0, reach: [[0, 1]], twins: [0, 1],
     route: (r, s) => {
       const c = s.rivers[r][0] && s.rivers[r][0][0];
       const i = [0, 1].find((j) => s.stops[j].bus && s.stops[j].bus.c === c && s.stops[j].bus.fill < s.stops[j].bus.n);
       return i === undefined ? 0 : i;
     }
   },
-  one: { stops: 2, discs: 1, reach: [[0, 1], [0, 1]], route: (r, s) => ((r === 0) === (s.k[0] === 0) ? 0 : 1) },
-  twin: { stops: 3, discs: 2, reach: [[0, 1, 2], [0, 1, 2], [1, 2]], route: (r, s) => routeStop(r, s, { bridge: true }) },
+  one: { stops: 2, discs: 1, reach: [[0, 1], [0, 1]], twins: [0, 1], route: (r, s) => ((r === 0) === (s.k[0] === 0) ? 0 : 1) },
+  twin: { stops: 3, discs: 2, reach: [[0, 1, 2], [0, 1, 2], [1, 2]], twins: [1, 2], route: (r, s) => routeStop(r, s, { bridge: true }) },
   triple: {
-    stops: 4, discs: 3, reach: [[0, 1, 2], [0, 1, 2], [3, 1, 2], [3, 1, 2]],
+    stops: 4, discs: 3, reach: [[0, 1, 2], [0, 1, 2], [3, 1, 2], [3, 1, 2]], twins: [1, 2],
     route: (r, s) => {
       const [a, b, c] = s.k;
       if (r < 2) return (r === 0) === (a === 0) ? 0 : (b === 0 ? 1 : 2);
@@ -159,15 +159,17 @@ const LAYOUTS = {
 function allowedStops(s, bus, cfg) {
   const layout = LAYOUTS[cfg.layout];
   const stops = Array.from({ length: layout.stops }, (_, i) => i).filter((i) => !s.stops[i].bus);
-  const returning = [...s.lanes.flat(), ...s.stops.map((st) => st.bus).filter(Boolean)].reduce((n, b) => (b.transfer && b.c === bus.c && b.id !== bus.id ? n + b.n : n), 0);
-  const canSupply = (i) => s.rivers.reduce((sum, river, r) => (layout.reach[r] && layout.reach[r].includes(i) ? sum + river.reduce((n, [c, k]) => (c === bus.c ? n + k : n), 0) : sum), layout.reach[2] && layout.reach[2].includes(i) ? returning : 0);
+  const canSupply = (i) => s.rivers.reduce((sum, river, r) => (layout.reach[r] && layout.reach[r].includes(i) ? sum + river.reduce((n, [c, k]) => (c === bus.c ? n + k : n), 0) : sum), 0);
   return stops.filter((i) => canSupply(i) >= bus.n);
 }
 
-function flowStop(s, bus, cfg) {
-  const allowed = allowedStops(s, bus, cfg);
-  for (const i of allowed) for (let r = 0; r < s.rivers.length; r++) if (s.rivers[r][0] && s.rivers[r][0][0] === bus.c && routeStop(r, s, cfg) === i) return i;
-  return allowed.length ? allowed[0] : null;
+// A free spin swaps twin stops, so a bus can take either one.
+function distinctStops(s, bus, cfg) {
+  const allowed = allowedStops(s, bus, cfg), twins = LAYOUTS[cfg.layout].twins;
+  if (!twins || !twins.every((i) => allowed.includes(i))) return allowed;
+  const feeds = (i) => s.rivers.some((river, r) => river[0] && river[0][0] === bus.c && routeStop(r, s, cfg) === i);
+  const drop = feeds(twins[1]) && !feeds(twins[0]) ? twins[0] : twins[1];
+  return allowed.filter((i) => i !== drop);
 }
 
 function flowMoves(s, cfg) {
@@ -179,4 +181,4 @@ function flowMoves(s, cfg) {
   return out;
 }
 
-if (typeof module !== 'undefined') module.exports = { RIVER_E, RIVER_W, RIVER_S, STOP_N, STOP_E, STOP_W, STOP_BAY, routeStop, newState, clone, platUsed, settle, canCall, legalMoves, apply, isWon, isJammed, LAYOUTS, allowedStops, flowStop, flowMoves };
+if (typeof module !== 'undefined') module.exports = { RIVER_E, RIVER_W, RIVER_S, STOP_N, STOP_E, STOP_W, STOP_BAY, routeStop, newState, clone, platUsed, settle, canCall, legalMoves, apply, isWon, isJammed, LAYOUTS, allowedStops, distinctStops, flowMoves };
