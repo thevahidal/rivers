@@ -22,6 +22,7 @@ function newState(stage, cfg) {
     k: [0, 0],
     uses: (cfg.tools || []).map((t) => t.uses),
     spent: [],
+    queue: [],
     gone: [],
     moves: 0
   };
@@ -35,6 +36,7 @@ function clone(s) {
     k: s.k.slice(),
     uses: (s.uses || []).slice(),
     spent: (s.spent || []).slice(),
+    queue: (s.queue || []).map((bus) => ({ ...bus })),
     gone: s.gone.slice(),
     moves: s.moves
   };
@@ -89,7 +91,7 @@ function settle(s, cfg, events) {
     });
     s.stops.forEach((stop, i) => {
       const bus = stop.bus;
-      if (!bus || bus.fill < busSeats(bus)) return;
+      if (!bus || bus.fill < busSeats(bus) || (cfg.layout && LAYOUTS[cfg.layout].train)) return;
       stop.bus = null;
       s.gone.push(bus.id);
       if ((cfg.once || []).includes(i)) s.spent.push(i);
@@ -125,8 +127,16 @@ function legalMoves(s, cfg) {
 
 function apply(s, cfg, move) {
   const next = clone(s), events = [];
-  if (move[0] === 'spin') {
-    next.k[move[1]] ^= 1;
+  const layout = cfg.layout && LAYOUTS[cfg.layout];
+  if (move[0] === 'spin' && layout && layout.train) {
+    const last = layout.stops - 1, out = next.stops[last].bus;
+    if (out) next.gone.push(out.id);
+    for (let i = last; i > 0; i--) next.stops[i].bus = next.stops[i - 1].bus;
+    next.stops[0].bus = next.queue.shift() || null;
+    next.k[0]++;
+    events.push({ type: 'advance' });
+  } else if (move[0] === 'spin') {
+    next.k[move[1]] = (next.k[move[1]] + 1) % ((layout && layout.turns) || 2);
     events.push({ type: 'spin', disc: move[1] });
   } else if (move[0] === 'tool') {
     const tool = cfg.tools[move[1]], river = next.rivers[tool.river];
@@ -144,6 +154,9 @@ function apply(s, cfg, move) {
     const r = move[1], i = routeStop(r, next, cfg), [c, n] = next.rivers[r].shift();
     next.stops[i].plat[c] += n;
     events.push({ type: 'shunt', river: r, stop: i, c, n });
+  } else if (move[2] === 'q') {
+    next.queue.push({ ...next.lanes[move[1]].shift(), fill: 0 });
+    events.push({ type: 'call', lane: move[1], stop: 'q' });
   } else {
     const bus = next.lanes[move[1]].shift();
     next.stops[move[2]].bus = { ...bus, fill: 0 };
@@ -154,7 +167,7 @@ function apply(s, cfg, move) {
   return { state: next, events };
 }
 
-const isWon = (s) => s.rivers.every((r) => !r.length) && s.lanes.every((l) => !l.length) && s.stops.every((st) => !st.bus && !platUsed(st));
+const isWon = (s) => s.rivers.every((r) => !r.length) && s.lanes.every((l) => !l.length) && !(s.queue || []).length && s.stops.every((st) => (!st.bus || st.bus.fill === busSeats(st.bus)) && !platUsed(st));
 
 function isJammed(s, cfg) {
   if (isWon(s)) return false;
@@ -190,18 +203,50 @@ const LAYOUTS = {
     }
   },
   cross: { stops: 2, discs: 1, reach: [[0, 1], [0, 1]], route: (r, s) => ((r === 0) === (s.k[0] === 0) ? 0 : 1) },
+  carousel: {
+    stops: 4, discs: 1, turns: 4, reach: [[0, 1, 2, 3], [0, 1, 2, 3], [0, 1, 2, 3]],
+    route: (r, s) => (r + 1 - (s.k[0] % 4) + 4) % 4,
+    entry: (s) => (4 - (s.k[0] % 4)) % 4
+  },
+  train: { stops: 3, discs: 1, train: true, slots: 2, reach: [[0], [1], [2]], route: (r) => r },
   slide: { stops: 2, discs: 1, reach: [[0], [0, 1], [1]], route: (r, s) => (r - s.k[0] === 0 || r - s.k[0] === 1 ? r - s.k[0] : null) }
+};
+
+const GRID = {
+  links: { '0:1': [1, 3], '1:3': [0, 1], '0:2': [2, 0], '2:0': [0, 2], '2:1': [3, 3], '3:3': [2, 1], '1:2': [3, 0], '3:0': [1, 2] },
+  exits: { '0:0': 0, '1:0': 1, '2:2': 2, '3:2': 3 },
+  entries: [[0, 3], [1, 1], [2, 3], [3, 1]]
+};
+function walkGrid(r, k) {
+  let [disc, port] = GRID.entries[r];
+  for (let guard = 0; guard < 6; guard++) {
+    const turn = k[disc] % 2, local = (port - turn + 4) % 4, out = ((local < 2 ? 1 - local : 5 - local) + turn) % 4, key = disc + ':' + out;
+    if (GRID.exits[key] !== undefined) return GRID.exits[key];
+    if (!GRID.links[key]) return null;
+    [disc, port] = GRID.links[key];
+  }
+  return null;
+}
+LAYOUTS.grid = {
+  stops: 4, discs: 4,
+  route: (r, s) => walkGrid(r, s.k),
+  reach: [0, 1, 2, 3].map((r) => [...new Set(Array.from({ length: 16 }, (_, m) => walkGrid(r, [0, 1, 2, 3].map((d) => (m >> d) & 1))).filter((i) => i !== null))])
 };
 
 function allowedStops(s, bus, cfg) {
   const layout = LAYOUTS[cfg.layout];
-  const stops = Array.from({ length: layout.stops }, (_, i) => i).filter((i) => !s.stops[i].bus && isOpen(s, cfg, i));
+  const stops = Array.from({ length: layout.stops }, (_, i) => i).filter((i) => !s.stops[i].bus && isOpen(s, cfg, i) && (!layout.entry || layout.entry(s) === i));
   const supply = (i, colour) => s.rivers.reduce((sum, river, r) => (layout.reach[r] && layout.reach[r].includes(i) ? sum + river.reduce((n, [c, k]) => (c === colour ? n + k : n), 0) : sum), 0);
   return stops.filter((i) => supply(i, bus.c) >= bus.n && (!bus.n2 || supply(i, bus.c2) >= bus.n2));
 }
 
 function flowMoves(s, cfg) {
-  const out = [];
+  const out = [], layout = LAYOUTS[cfg.layout];
+  if (layout.train) {
+    if (s.queue.length < layout.slots) s.lanes.forEach((lane, l) => { if (lane[0] && canCall(s, l)) out.push(['call', l, 'q']); });
+    if (s.queue.length || s.stops.some((st) => st.bus)) out.push(['spin', 0]);
+    return out;
+  }
   for (let d = 0; d < LAYOUTS[cfg.layout].discs; d++) if (canSpin(s, cfg, d)) out.push(['spin', d]);
   s.lanes.forEach((lane, l) => {
     if (lane[0] && canCall(s, l)) allowedStops(s, lane[0], cfg).forEach((i) => out.push(['call', l, i]));
