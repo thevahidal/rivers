@@ -36,6 +36,11 @@ function clone(s) {
   };
 }
 
+const busSeats = (bus) => bus.n + (bus.n2 || 0);
+const wantsColour = (bus) => (bus.fill < bus.n ? bus.c : bus.c2);
+const isOpen = (s, cfg, i) => !(cfg.closed || []).some(([stop, key]) => stop === i && !s.gone.includes(key));
+const canSpin = (s, cfg, d) => !(cfg.locked || []).some(([disc, key]) => disc === d && !s.gone.includes(key));
+
 const platUsed = (stop) => stop.plat[0] + stop.plat[1] + stop.plat[2] + stop.plat[3];
 
 function settle(s, cfg, events) {
@@ -57,17 +62,17 @@ function settle(s, cfg, events) {
       if (!front) return;
       const i = routeStop(r, s, cfg);
       const bus = i === null ? null : s.stops[i].bus;
-      if (!bus || bus.c !== front[0] || bus.fill === bus.n) return;
-      const n = Math.min(front[1], bus.n - bus.fill);
+      if (!bus || bus.fill === busSeats(bus) || wantsColour(bus) !== front[0]) return;
+      const n = Math.min(front[1], (bus.fill < bus.n ? bus.n : busSeats(bus)) - bus.fill);
       front[1] -= n;
       bus.fill += n;
       if (front[1] === 0) river.shift();
-      events.push({ type: 'flow', river: r, stop: i, c: bus.c, n });
+      events.push({ type: 'flow', river: r, stop: i, c: front[0], n });
       changed = true;
     });
     s.stops.forEach((stop, i) => {
       const bus = stop.bus;
-      if (!bus || bus.fill < bus.n) return;
+      if (!bus || bus.fill < busSeats(bus)) return;
       stop.bus = null;
       s.gone.push(bus.id);
       events.push({ type: 'depart', stop: i, bus });
@@ -137,17 +142,17 @@ function isJammed(s, cfg) {
 const LAYOUTS = {
   road: { stops: 1, discs: 0, reach: [[0]], route: () => 0 },
   fork: {
-    stops: 2, discs: 0, reach: [[0, 1]], twins: [0, 1],
+    stops: 2, discs: 0, reach: [[0, 1]],
     route: (r, s) => {
       const c = s.rivers[r][0] && s.rivers[r][0][0];
-      const i = [0, 1].find((j) => s.stops[j].bus && s.stops[j].bus.c === c && s.stops[j].bus.fill < s.stops[j].bus.n);
+      const i = [0, 1].find((j) => s.stops[j].bus && wantsColour(s.stops[j].bus) === c && s.stops[j].bus.fill < busSeats(s.stops[j].bus));
       return i === undefined ? 0 : i;
     }
   },
-  one: { stops: 2, discs: 1, reach: [[0, 1], [0, 1]], twins: [0, 1], route: (r, s) => ((r === 0) === (s.k[0] === 0) ? 0 : 1) },
-  twin: { stops: 3, discs: 2, reach: [[0, 1, 2], [0, 1, 2], [1, 2]], twins: [1, 2], route: (r, s) => routeStop(r, s, { bridge: true }) },
+  one: { stops: 2, discs: 1, reach: [[0, 1], [0, 1]], route: (r, s) => ((r === 0) === (s.k[0] === 0) ? 0 : 1) },
+  twin: { stops: 3, discs: 2, reach: [[0, 1, 2], [0, 1, 2], [1, 2]], route: (r, s) => routeStop(r, s, { bridge: true }) },
   triple: {
-    stops: 4, discs: 3, reach: [[0, 1, 2], [0, 1, 2], [3, 1, 2], [3, 1, 2]], twins: [1, 2],
+    stops: 4, discs: 3, reach: [[0, 1, 2], [0, 1, 2], [3, 1, 2], [3, 1, 2]],
     route: (r, s) => {
       const [a, b, c] = s.k;
       if (r < 2) return (r === 0) === (a === 0) ? 0 : (b === 0 ? 1 : 2);
@@ -158,27 +163,18 @@ const LAYOUTS = {
 
 function allowedStops(s, bus, cfg) {
   const layout = LAYOUTS[cfg.layout];
-  const stops = Array.from({ length: layout.stops }, (_, i) => i).filter((i) => !s.stops[i].bus);
-  const canSupply = (i) => s.rivers.reduce((sum, river, r) => (layout.reach[r] && layout.reach[r].includes(i) ? sum + river.reduce((n, [c, k]) => (c === bus.c ? n + k : n), 0) : sum), 0);
-  return stops.filter((i) => canSupply(i) >= bus.n);
-}
-
-// A free spin swaps twin stops, so a bus can take either one.
-function distinctStops(s, bus, cfg) {
-  const allowed = allowedStops(s, bus, cfg), twins = LAYOUTS[cfg.layout].twins;
-  if (!twins || !twins.every((i) => allowed.includes(i))) return allowed;
-  const feeds = (i) => s.rivers.some((river, r) => river[0] && river[0][0] === bus.c && routeStop(r, s, cfg) === i);
-  const drop = feeds(twins[1]) && !feeds(twins[0]) ? twins[0] : twins[1];
-  return allowed.filter((i) => i !== drop);
+  const stops = Array.from({ length: layout.stops }, (_, i) => i).filter((i) => !s.stops[i].bus && isOpen(s, cfg, i));
+  const supply = (i, colour) => s.rivers.reduce((sum, river, r) => (layout.reach[r] && layout.reach[r].includes(i) ? sum + river.reduce((n, [c, k]) => (c === colour ? n + k : n), 0) : sum), 0);
+  return stops.filter((i) => supply(i, bus.c) >= bus.n && (!bus.n2 || supply(i, bus.c2) >= bus.n2));
 }
 
 function flowMoves(s, cfg) {
   const out = [];
-  for (let d = 0; d < LAYOUTS[cfg.layout].discs; d++) out.push(['spin', d]);
+  for (let d = 0; d < LAYOUTS[cfg.layout].discs; d++) if (canSpin(s, cfg, d)) out.push(['spin', d]);
   s.lanes.forEach((lane, l) => {
     if (lane[0] && canCall(s, l)) allowedStops(s, lane[0], cfg).forEach((i) => out.push(['call', l, i]));
   });
   return out;
 }
 
-if (typeof module !== 'undefined') module.exports = { RIVER_E, RIVER_W, RIVER_S, STOP_N, STOP_E, STOP_W, STOP_BAY, routeStop, newState, clone, platUsed, settle, canCall, legalMoves, apply, isWon, isJammed, LAYOUTS, allowedStops, distinctStops, flowMoves };
+if (typeof module !== 'undefined') module.exports = { RIVER_E, RIVER_W, RIVER_S, STOP_N, STOP_E, STOP_W, STOP_BAY, routeStop, newState, clone, platUsed, settle, canCall, legalMoves, apply, isWon, isJammed, LAYOUTS, allowedStops, flowMoves, busSeats, wantsColour, isOpen, canSpin };
