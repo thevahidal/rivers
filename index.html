@@ -26,8 +26,13 @@
   .pin { position: fixed; left: 0; top: 0; transform: translate(-50%, -50%); pointer-events: none; }
   .blocks { display: flex; flex-wrap: wrap; gap: 3px; width: 112px; }
   .blocks.right { justify-content: flex-end; }
+  .blocks.mid { justify-content: center; }
   .blocks i { min-width: 26px; height: 22px; padding: 0 3px; box-sizing: border-box; border-radius: 7px; color: #fff; font-size: 13px; font-style: normal; font-weight: 800; text-align: center; line-height: 22px; }
   .blocks i:first-child { outline: 2px solid #fff; }
+  .badge { width: 40px; height: 40px; border-radius: 50%; background: #fff; box-shadow: 0 3px 0 rgba(36,50,74,.3); display: flex; align-items: center; justify-content: center; }
+  .badge svg { width: 26px; height: 26px; }
+  .badge b { position: absolute; right: -7px; top: -7px; min-width: 20px; height: 20px; padding: 0 4px; box-sizing: border-box; border-radius: 10px; background: #24324A; color: #fff; font-size: 13px; line-height: 20px; text-align: center; }
+  .seat svg { width: 16px; height: 16px; vertical-align: -2px; }
   .here { height: 44px; padding: 0 16px; border-radius: 20px; background: #FFC233; box-shadow: 0 4px 0 #CC9410; font-size: 19px; font-weight: 800; line-height: 44px; pointer-events: auto; cursor: pointer; }
   .dot { width: 20px; height: 20px; border: 3px solid #fff; border-radius: 50%; box-shadow: 0 2px 0 rgba(36,50,74,.25); pointer-events: auto; cursor: pointer; }
   .dot::after { content: ''; position: absolute; inset: -14px; }
@@ -40,6 +45,7 @@
   .tile:active { transform: translateY(3px); box-shadow: 0 1px 0 #2F9450; }
   .tile b { display: block; font-size: 22px; line-height: 1.05; }
   .tile small { display: block; color: #FFE08A; font-size: 13px; letter-spacing: 1px; }
+  .tile svg { width: 22px; height: 22px; }
   .tile:disabled { background: #DDE3EB; box-shadow: 0 4px 0 #BFC9D6; color: #8A95A6; }
   .stars { font-size: 46px; line-height: 1.1; color: #FFC233; letter-spacing: 4px; }
   .big { width: 100%; height: 58px; border: 0; border-radius: 22px; background: #4CC26E; box-shadow: 0 7px 0 #2F9450; color: #fff; font-size: 23px; font-weight: 800; }
@@ -61,7 +67,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/BufferGeometryUtils.js"></script>
-<script src="puzzle-rules.js?v=9"></script>
+<script src="puzzle-rules.js?v=11"></script>
 <script>
 const UNIT = 10, MAX_PEOPLE = 640, R = 2.6, GATE = R + 0.5, LANES = 3, ROW = 0.46, GAP = 0.5, WALK = 6.5, RUN = 8.5, RATE = 36, STALL = 3;
 const LOT_PITCH = 2.6, LOT_FRONT = -21, LOT_SCALE = 0.62, FRONT_SCALE = 0.86, AISLE = -18.3, DRIVE = 30, ACCEL = 60, BRAKE = 45, FAR_Z = 34;
@@ -74,6 +80,19 @@ const COLOURS = [
   { body: 0xA05CFF, dark: 0x6F38BF, css: '#A05CFF' }
 ];
 const bus = (id, c, n) => ({ id, c, n });
+const INK = '#24324A';
+const line2 = (d, colour = INK) => `<path d="${d}" fill="none" stroke="${colour}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>`;
+const ICONS = {
+  loop: () => line2('M19 12a7 7 0 1 1-2.05-4.95') + line2('M17.5 3.2v4.6h-4.6'),
+  paint: (c) => `<path d="M4.5 9.5h13l-1.6 9.6a2 2 0 0 1-2 1.7H8.1a2 2 0 0 1-2-1.7z" fill="${c}" stroke="${INK}" stroke-width="2.2" stroke-linejoin="round"/>` + line2('M7 9.5a4.5 4.5 0 0 1 9 0') + line2('M17.5 9.5c1.8 0 2.6 1.6 2.6 3.4v1.6', c),
+  points: () => line2('M5 19L19 5M5 5l14 14') + line2('M14.5 5H19v4.5M9.5 5H5v4.5'),
+  slide: () => line2('M3.5 12h17M7.5 8l-4 4 4 4M16.5 8l4 4-4 4'),
+  cone: () => `<path d="M12 3.5l5.6 15.5H6.4z" fill="#FF8B2B" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/>` + line2('M8.6 13h6.8', '#fff') + line2('M4 20h16'),
+  bridge: () => line2('M2.5 15.5h19') + line2('M5 15.5V11.5M19 15.5V11.5') + line2('M5 11.5q7-6.5 14 0') + line2('M9.5 15.5v-5M14.5 15.5v-5'),
+  lock: () => `<rect x="5" y="10" width="14" height="10" rx="2.6" fill="#FFC233" stroke="${INK}" stroke-width="2.2"/>` + line2('M8.3 10V7.6a3.7 3.7 0 0 1 7.4 0V10')
+};
+const icon = (name, colour) => `<svg viewBox="0 0 24 24">${ICONS[name](colour)}</svg>`;
+const badge = (name, tag, colour) => icon(name, colour) + (tag === undefined ? '' : `<b>${tag}</b>`);
 
 const GEOMETRY = {
   road: {
@@ -108,6 +127,24 @@ const GEOMETRY = {
     roads: [[0, -12, 2.5, 13], [0, -4.3, 2.5, 2], [0, 4.3, 2.5, 2], [24, -8.6, 42, 2.5], [-24, -8.6, 42, 2.5], [18, 0, 29.5, 2.5], [-18, 0, 29.5, 2.5], [24, 8.6, 42, 2.5], [-24, 8.6, 42, 2.5], [0, 30, 2.5, 36]],
     stops: [{ ax: 0, az: -8.6, port: N, tight: true }, { ax: 0, az: 0, port: E }, { ax: 0, az: 0, port: W }, { ax: 0, az: 8.6, port: S, tight: true }],
     rivers: [{ ax: 0, az: -8.6, port: E, disc: 0, chip: [7.6, -11.5] }, { ax: 0, az: -8.6, port: W, disc: 0, chip: [-7.6, -11.5], right: true }, { ax: 0, az: 8.6, port: E, disc: 2, chip: [7.6, 5.7] }, { ax: 0, az: 8.6, port: W, disc: 2, chip: [-7.6, 5.7], right: true }]
+  },
+  cross: {
+    discs: [],
+    flip: { kind: 'points', x: 0, z: -1, w: 3.5, h: 6 },
+    via: -4,
+    plazas: [[0, -1, 9.5, 6]],
+    roads: [[-3.5, 11, 2.5, 59], [3.5, 11, 2.5, 59]],
+    stops: [{ ax: -3.5, az: -4, port: N }, { ax: 3.5, az: -4, port: N }],
+    rivers: [{ ax: -3.5, az: 2, port: S, via: true, chip: [-7.9, 7.5], right: true }, { ax: 3.5, az: 2, port: S, via: true, chip: [7.9, 7.5] }]
+  },
+  slide: {
+    discs: [],
+    flip: { kind: 'slide', x: -2.5, z: -6.7, shift: 5, stops: [0, 1] },
+    via: -1,
+    plazas: [[0, -7, 20, 20]],
+    roads: [[-5, 20, 2.5, 34], [0, 20, 2.5, 34], [5, 20, 2.5, 34]],
+    stops: [{ ax: -5, az: 0, port: N }, { ax: 0, az: 0, port: N }],
+    rivers: [-5, 0, 5].map((x) => ({ ax: x, az: 3, port: S, via: true, chip: [x, 4.6], mid: true }))
   }
 };
 
@@ -358,6 +395,52 @@ const LEVELS = [
       [[-8.4, -14.4], [8.4, -14.4], [-6, -15.3], [6, -15.3], [-8.4, 14.2], [8.4, 14.2], [-5.7, 14], [5.7, 14], [-7, -4.4], [7, -4.4], [-7, 4.4], [7, 4.4]].forEach(([x, z]) => p.tower(x, z));
       [[-4.4, -4.5], [4.4, -4.5], [-4.4, 4.5], [4.4, 4.5]].forEach(([x, z]) => p.lamp(x, z));
     }
+  },
+  {
+    name: 'Roundabout', lab: true, moves: 7, layout: 'road', theme: 'square',
+    rivers: [[[2,2],[0,4],[1,4],[2,2],[1,2]]],
+    lanes: [[{"id":3,"c":0,"n":2},{"id":5,"c":2,"n":2},{"id":2,"c":2,"n":2}],[{"id":0,"c":0,"n":2},{"id":1,"c":1,"n":4},{"id":4,"c":1,"n":2}]],
+    tools: [{ kind: 'loop', river: 0, uses: 2, at: [3.9, -4.4] }],
+    hint: 'Tap the roundabout to send the front crowd to the back',
+    props: (p) => { [[-6.5, -11.5, 0xF7B2A0], [6.8, -12.5, 0xA7C7F2]].forEach(([x, z, c]) => p.house(x, z, c)); }
+  },
+  {
+    name: 'Railway Points', lab: true, moves: 10, layout: 'cross', theme: 'station',
+    rivers: [[[1,4],[0,3],[2,2],[1,2]],[[0,6],[2,3],[1,3],[2,2]]],
+    lanes: [[{"id":5,"c":2,"n":4},{"id":3,"c":0,"n":3},{"id":6,"c":0,"n":3}],[{"id":4,"c":1,"n":4},{"id":0,"c":0,"n":3},{"id":1,"c":1,"n":2}],[{"id":7,"c":1,"n":3},{"id":2,"c":2,"n":3}]],
+    hint: 'Tap the points to swap where each road goes',
+    props: (p) => { [[-8.5, -12], [8.5, -12]].forEach(([x, z]) => p.lamp(x, z)); }
+  },
+  {
+    name: 'Sliding Block', lab: true, moves: 11, layout: 'slide', theme: 'depot',
+    rivers: [[[2,4],[1,2],[0,3]],[[1,2],[2,2],[0,2]],[[0,3],[1,8]]],
+    lanes: [[{"id":7,"c":1,"n":4},{"id":3,"c":0,"n":2},{"id":1,"c":1,"n":4}],[{"id":6,"c":0,"n":3},{"id":0,"c":0,"n":3},{"id":2,"c":2,"n":2}],[{"id":5,"c":2,"n":4},{"id":4,"c":1,"n":4}]],
+    hint: 'Tap the platform to slide both stops',
+    props: () => {}
+  },
+  {
+    name: 'Paint Arch', lab: true, moves: 7, layout: 'road', theme: 'market',
+    rivers: [[[0,4],[1,4],[0,2],[1,2],[0,2]]],
+    lanes: [[{"id":5,"c":2,"n":2},{"id":4,"c":1,"n":4},{"id":3,"c":0,"n":2}],[{"id":2,"c":2,"n":2},{"id":1,"c":1,"n":2},{"id":0,"c":0,"n":2}]],
+    tools: [{ kind: 'paint', river: 0, c: 2, uses: 1, at: [0, -5.3] }],
+    hint: 'Tap the paint arch to paint the front crowd green',
+    props: (p) => { [[-7.2, -11.5, 0xE5484D], [7.2, -11.5, 0x3F86F5]].forEach(([x, z, c]) => p.stall(x, z, c)); }
+  },
+  {
+    name: 'Footbridge', lab: true, moves: 12, layout: 'cross', theme: 'bridges',
+    rivers: [[[0,4],[1,4],[2,2]],[[2,2],[1,2],[0,2],[1,2],[0,3],[2,2],[1,2]]],
+    lanes: [[{"id":1,"c":1,"n":2},{"id":2,"c":2,"n":4},{"id":0,"c":0,"n":4}],[{"id":5,"c":2,"n":2},{"id":4,"c":1,"n":4},{"id":7,"c":1,"n":4}],[{"id":6,"c":0,"n":3},{"id":3,"c":0,"n":2}]],
+    tools: [{ kind: 'merge', river: 0, into: 1, uses: 1, at: [0, 10] }],
+    hint: 'The footbridge sends the whole left crowd behind the right one',
+    props: (p) => { [[-8.5, -12], [8.5, -12]].forEach(([x, z]) => p.tree(x, z, 1)); }
+  },
+  {
+    name: 'Rope Bridge', lab: true, moves: 10, layout: 'twin', theme: 'hill',
+    rivers: [[[1,3],[0,4],[2,3]],[[2,6],[1,2]],[[1,3],[0,4]]],
+    lanes: [[{"id":6,"c":0,"n":2},{"id":4,"c":1,"n":2},{"id":7,"c":1,"n":3}],[{"id":5,"c":2,"n":2},{"id":3,"c":0,"n":4},{"id":2,"c":2,"n":3}],[{"id":8,"c":2,"n":4},{"id":1,"c":1,"n":3},{"id":0,"c":0,"n":2}]],
+    once: [1],
+    hint: 'The rope bridge holds one bus, then it falls',
+    props: (p) => { p.water(12.4, 6.4, 2.6, 9); [[-5, -13], [5, -13], [-5.6, 13.6], [5.6, 13.6]].forEach(([x, z]) => p.cactus(x, z)); }
   }
 ];
 
@@ -552,7 +635,7 @@ const el = (id) => document.getElementById(id);
 const scratch = new THREE.Object3D();
 let audio, phase = 'menu', countdown = 0, people = [], lines = [], acc = [], stops = [], depot = [], flying = [], discs = [];
 let boarded = 0, runners = 0, shake = 0, combo = 0, bestCombo = 0, sinceFlow = 0, labels = {}, lastBlocks = [], lastTick = 0, picked = null;
-let gone = [], letters = {}, blockers = [], clock = 0;
+let gone = [], letters = {}, blockers = [], clock = 0, tools = [], flipLabel = null, blockSeq = 1000, spent = [], taps = 0, titleBottom = 0;
 let levelIndex = 0, level = null, geo = null, layout = null, CFG = null, GEO = [], TOTAL = 0, FAR = 28, hintTimer, levelHintOn = false;
 
 function tone(freq, length, volume) {
@@ -626,18 +709,19 @@ function buildWorld() {
     const long = w > d, length = long ? w : d;
     for (let t = -length / 2 + 1; t < length / 2 - 0.5; t += 2.2) {
       const x = long ? cx + t : cx, z = long ? cz : cz + t;
-      if (geo.discs.some(([dx, dz]) => Math.hypot(x - dx, z - dz) < 3.9) || z < -19.5) continue;
+      if (geo.discs.some(([dx, dz]) => Math.hypot(x - dx, z - dz) < 3.9) || z < -19.5 || (geo.plazas || []).some(([px, pz, pw, pd]) => Math.abs(x - px) < pw / 2 && Math.abs(z - pz) < pd / 2)) continue;
       slab(new THREE.BoxGeometry(long ? 1.1 : 0.16, 0.02, long ? 0.16 : 1.1), 0xEEF1F6, x, 0.115, z);
     }
   };
   addRoad(0, AISLE, 66, 2.5);
   geo.roads.forEach(([cx, cz, w, d]) => addRoad(cx, cz, w, d));
+  (geo.plazas || []).forEach(([cx, cz, w, d]) => {
+    slab(new THREE.BoxGeometry(w + 0.34, 0.08, d + 0.34), KERB, cx, 0.04, cz);
+    slab(new THREE.BoxGeometry(w, 0.1, d), theme.road, cx, 0.06, cz);
+    paved.push([cx, cz, w + 0.34, d + 0.34]);
+  });
   slab(new THREE.BoxGeometry(22, 0.06, 15), theme.lot, 0, 0.03, -27.2);
   for (let l = 1; l < level.lanes.length; l++) slab(new THREE.BoxGeometry(0.14, 0.05, 15), 0xFFFFFF, laneX(l) - 3, 0.08, -27.2);
-  GEO.forEach((g) => {
-    const along = g.dz !== 0, w = along ? 2.7 : 4.3, d = along ? 4.3 : 2.7;
-    [[0, -d / 2, w, 0.14], [0, d / 2, w, 0.14], [-w / 2, 0, 0.14, d], [w / 2, 0, 0.14, d]].forEach(([ox, oz, bw, bd]) => slab(new THREE.BoxGeometry(bw, 0.02, bd), 0xFFD45A, g.parkX + ox, 0.117, g.parkZ + oz));
-  });
   const blocks = islandRects(paved, -34, 34, -38, 40);
   blocks.forEach((b, i) => {
     const w = b.x1 - b.x0, d = b.z1 - b.z0, x = (b.x0 + b.x1) / 2, z = (b.z0 + b.z1) / 2;
@@ -659,6 +743,45 @@ function buildWorld() {
     spinner.position.set(x, 0, z);
     world.add(spinner);
     return { x, z, spinner, k: 0, spin: 0, vel: 0 };
+  });
+  const f = geo.flip;
+  if (f && f.kind === 'points') {
+    const strip = (x, len, turn) => {
+      const g = coloured(new THREE.BoxGeometry(0.5, 0.03, len), new THREE.Color(0xFFC233));
+      g.rotateY(turn);
+      g.translate(x, 0.125, f.z);
+      return g;
+    };
+    const across = Math.hypot(f.w * 2, f.h);
+    const straight = levelMesh([strip(-f.w, f.h, 0), strip(f.w, f.h, 0)], false);
+    const crossed = levelMesh([strip(0, across, Math.atan2(f.w * 2, -f.h)), strip(0, across, Math.atan2(-f.w * 2, -f.h))], false);
+    world.add(straight, crossed);
+    discs.push({ kind: 'points', x: f.x, z: f.z, reach: 4.6, straight, crossed, spinner: new THREE.Group(), k: 0, spin: 0, vel: 0 });
+  }
+  if (f && f.kind === 'slide') {
+    [-3.4, 3.4].forEach((dz) => slab(new THREE.BoxGeometry(17, 0.03, 0.2), 0x90A0BC, 0, 0.12, f.z + dz));
+    const rim = coloured(roundedSlab(10, 0.02, 6, 0.8), new THREE.Color(KERB)), top = coloured(roundedSlab(9.4, 0.02, 5.4, 0.6), new THREE.Color(theme.lot));
+    rim.translate(0, 0.125, 0);
+    top.translate(0, 0.14, 0);
+    const plate = levelMesh([rim, top], false);
+    plate.position.set(f.x, 0, f.z);
+    world.add(plate);
+    discs.push({ kind: 'slide', x0: f.x, x: f.x, z: f.z, reach: 5, shift: f.shift, stops: f.stops, spinner: plate, k: 0, spin: 0, vel: 0 });
+  }
+  (level.tools || []).forEach((t) => {
+    const [x, z] = t.at;
+    taken.push([x, z, 2]);
+    if (t.kind === 'loop') {
+      slab(new THREE.CylinderGeometry(2.3, 2.3, 0.05, 28), 0xFFC233, x, ISLAND + 0.02, z);
+      place('fountain', x, z, 1);
+    } else if (t.kind === 'paint') {
+      const colour = new THREE.Color(COLOURS[t.c].body), arch = [[-1.75, 1.2, 0.42, 2.4, 0.42], [1.75, 1.2, 0.42, 2.4, 0.42], [0, 2.55, 4.3, 0.55, 0.6]].map(([ox, oy, w, h, d]) => {
+        const g = coloured(roundedSlab(w, h, d, 0.12), colour);
+        g.translate(x + ox, oy, z);
+        return g;
+      });
+      solid.push(...arch);
+    }
   });
   level.props(makeProps(slab, put, theme));
   const kinds = theme.scatter || SCATTER, density = theme.density === undefined ? 0.4 : theme.density;
@@ -685,16 +808,16 @@ function loadLevel(i) {
   level = LEVELS[i];
   layout = LAYOUTS[level.layout];
   geo = GEOMETRY[level.layout];
-  CFG = { layout: level.layout, caps: [0, 0, 0, 0], closed: level.closed || [], locked: level.locked || [] };
+  CFG = { layout: level.layout, caps: [0, 0, 0, 0], closed: level.closed || [], locked: level.locked || [], tools: level.tools || [], once: level.once || [] };
   GEO = geo.stops.map((s) => {
     const [dx, dz] = PORT[s.port];
     const door = R + (s.tight ? 1.4 : 1.9), park = R + (s.tight ? 3.4 : 4.3);
-    return { dx, dz, x: s.ax, z: s.az, doorX: s.ax + dx * door, doorZ: s.az + dz * door, parkX: s.ax + dx * park, parkZ: s.az + dz * park };
+    return { dx, dz, x: s.ax, z: s.az, doorX: s.ax + dx * door, doorZ: s.az + dz * door, parkX: s.ax + dx * park, parkZ: s.az + dz * park, baseX: s.ax + dx * park };
   });
   TOTAL = level.rivers.flat().reduce((sum, block) => sum + block[1], 0) * UNIT;
   buildWorld();
   resize();
-  el('name').textContent = `${i + 1}. ${level.name}`;
+  el('name').textContent = level.lab ? `Lab: ${level.name}` : `${i + 1}. ${level.name}`;
 }
 
 const routeView = (k) => ({
@@ -713,6 +836,7 @@ function reset() {
   stops.forEach((s) => { if (s.bus) world.remove(s.bus.mesh); });
   stops = geo.stops.map(() => ({ bus: null }));
   discs.forEach((d) => { d.k = 0; d.spin = 0; d.vel = 0; d.spinner.rotation.y = 0; });
+  GEO.forEach((g) => { g.parkX = g.doorX = g.baseX; });
   boarded = runners = combo = bestCombo = sinceFlow = 0;
   picked = null;
   gone = [];
@@ -759,8 +883,21 @@ function reset() {
       node.onclick = () => { if (picked !== null && phase === 'playing') sendBus(picked, i); };
       return node;
     }),
-    blocks: geo.rivers.map((river) => pin('blocks' + (river.right ? ' right' : ''), ''))
+    blocks: geo.rivers.map((river) => pin('blocks' + (river.right ? ' right' : river.mid ? ' mid' : ''), ''))
   };
+  tools.forEach((t) => { if (t.plank) world.remove(t.plank); });
+  tools = (level.tools || []).map((t) => ({ ...t, label: pin('badge', '') }));
+  tools.filter((t) => t.kind === 'merge').forEach((t) => {
+    const from = geo.rivers[t.river].ax, to = geo.rivers[t.into].ax, span = Math.abs(to - from) - 2.4;
+    t.plank = new THREE.Group();
+    t.plank.add(part(coloured(new THREE.BoxGeometry(span, 0.14, 1.8), new THREE.Color(MODEL_COLOURS.Wood)).translate(span / 2, 0, 0), solidPaint, 0, 0, 0));
+    t.plank.position.set(Math.min(from, to) + 1.2, 0.25, t.at[1]);
+    t.plank.rotation.z = 1.25;
+    world.add(t.plank);
+  });
+  tools.forEach(toolLabel);
+  const flip = discs.find((d) => d.kind);
+  flipLabel = flip ? pin('badge', badge(flip.kind)) : null;
   letters = {};
   [...depot.flat().map((b) => b.key), ...CFG.closed.map((c) => c[1]), ...CFG.locked.map((l) => l[1])].forEach((key) => { if (key !== undefined && letters[key] === undefined) letters[key] = String.fromCharCode(65 + Object.keys(letters).length); });
   depot.flat().forEach((b) => {
@@ -778,7 +915,7 @@ function reset() {
       cone.translate(g.parkX + (g.dz ? o : 0), 0.1, g.parkZ + (g.dz ? 0 : o));
       return cone;
     });
-    blockers.push({ key, x: g.parkX, z: g.parkZ, mesh: levelMesh(cones, true), label: pin('seat front', '🚧' + letters[key]) });
+    blockers.push({ key, x: g.parkX, z: g.parkZ, mesh: levelMesh(cones, true), label: pin('badge', badge('cone', letters[key])) });
   });
   CFG.locked.forEach(([d, key]) => {
     const disc = discs[d], bars = [Math.PI / 4, -Math.PI / 4].map((turn) => {
@@ -787,11 +924,23 @@ function reset() {
       bar.translate(disc.x, 0.52, disc.z);
       return bar;
     });
-    blockers.push({ key, x: disc.x, z: disc.z, mesh: levelMesh(bars, false), label: pin('seat front', '🔒' + letters[key]) });
+    blockers.push({ key, x: disc.x, z: disc.z, mesh: levelMesh(bars, false), label: pin('badge', badge('lock', letters[key])) });
+  });
+  CFG.once.forEach((i) => {
+    const g = GEO[i], x = g.parkX + g.dx * 5.5, z = g.parkZ + g.dz * 5.5, planks = [];
+    for (let o = -1.5; o <= 1.5; o += 0.6) {
+      const plank = coloured(new THREE.BoxGeometry(g.dx ? 0.45 : 3.2, 0.12, g.dx ? 3.2 : 0.45), new THREE.Color(MODEL_COLOURS.Wood));
+      plank.translate(x + (g.dx ? o : 0), 0.34, z + (g.dx ? 0 : o));
+      planks.push(plank);
+    }
+    blockers.push({ once: i, x, z, mesh: levelMesh(planks, true), label: pin('badge', badge('bridge', 1)) });
   });
   blockers.forEach((x) => world.add(x.mesh));
+  spent = [];
+  taps = 0;
   clock = 0;
-  el('clock').style.display = level.par ? '' : 'none';
+  el('clock').style.display = level.par || level.moves ? '' : 'none';
+  showTaps();
   refreshLabels();
   el('combo').style.opacity = 0;
   hint('');
@@ -799,14 +948,27 @@ function reset() {
 }
 
 const isLocked = (b) => b.key !== undefined && !gone.includes(b.key);
+function showTaps() {
+  if (!level.moves) return;
+  el('clock').textContent = `${level.moves - taps} taps left`;
+  el('clock').classList.toggle('late', taps >= level.moves);
+}
+function spend() {
+  if (!level.moves) return true;
+  if (taps >= level.moves) { hint('No taps left'); tone(90, 0.15, 0.2); return false; }
+  taps++;
+  showTaps();
+  return true;
+}
+const joinBlocks = (line) => line.forEach((p, i) => { if (i && line[i - 1].c === p.c) p.block = line[i - 1].block; });
 function refreshLabels() {
   depot.flat().forEach((b) => {
     if (!isLocked(b) && b.chain) { b.mesh.remove(b.chain); b.chain = null; }
     const tag = letters[b.id] ? letters[b.id] + '·' : '';
-    b.label.innerHTML = isLocked(b) ? `🔒${letters[b.key]}` : `${tag}${b.n * UNIT}${b.n2 ? `<span style="color:${COLOURS[b.c2].css}">+${b.n2 * UNIT}</span>` : ''}`;
+    b.label.innerHTML = isLocked(b) ? `${icon('lock')}${letters[b.key]}` : `${tag}${b.n * UNIT}${b.n2 ? `<span style="color:${COLOURS[b.c2].css}">+${b.n2 * UNIT}</span>` : ''}`;
   });
   blockers.forEach((x) => {
-    if (x.open || gone.includes(x.key)) { x.open = true; world.remove(x.mesh); x.label.remove(); }
+    if (x.open || (x.key !== undefined && gone.includes(x.key))) { x.open = true; world.remove(x.mesh); x.label.remove(); }
   });
 }
 function layoutLine(line, instant) {
@@ -821,7 +983,7 @@ function layoutLine(line, instant) {
   });
 }
 function linePos(p) {
-  const river = geo.rivers[p.river], [dx, dz] = PORT[river.port], lat = (p.lane - 1) * 0.66;
+  const river = geo.rivers[p.river], [dx, dz] = PORT[river.port], lat = (p.lane - 1) * 0.66 + (p.back ? 1.9 : 0);
   return [river.ax + dx * p.s + (dz ? lat : 0), river.az + dz * p.s + (dx ? lat : 0)];
 }
 function buildPath(p, stopIndex) {
@@ -840,7 +1002,11 @@ function buildPath(p, stopIndex) {
     const link = geo.links && geo.links[disc + ':' + out];
     if (link) [disc, port] = link; else break;
   }
+  if (river.via) points.push([river.ax + lat, river.az], [g.doorX + lat, geo.via]);
   points.push([g.doorX + (g.dz ? lat * 0.3 : 0), g.doorZ + (g.dx ? lat * 0.3 : 0)]);
+  return trail(points);
+}
+function trail(points) {
   const lengths = [0];
   for (let i = 1; i < points.length; i++) lengths.push(lengths[i - 1] + Math.hypot(points[i][0] - points[i - 1][0], points[i][1] - points[i - 1][1]));
   return { points, lengths, total: lengths[lengths.length - 1] };
@@ -871,6 +1037,8 @@ function snapshot() {
       return { bus: b ? { id: b.id, c: b.c, n: b.first, c2: b.c2, n2: b.seats - b.first, fill: b.claimed } : null, plat: [0, 0, 0, 0] };
     }),
     k: discs.map((d) => d.k % 2),
+    uses: tools.map((t) => t.uses),
+    spent: spent.slice(),
     gone: gone.slice(),
     moves: 0
   };
@@ -942,7 +1110,7 @@ function callLane(lane) {
   tone(260, 0.08, 0.08);
 }
 function dotColour(i, view) {
-  if (stops[i].bus || phase !== 'playing' || closedBy(i)) return null;
+  if ((stops[i].bus && stops[i].bus.parked) || phase !== 'playing' || closedBy(i) || spent.includes(i)) return null;
   const from = lines.findIndex((line, r) => line[0] && (layout.discs ? routeStop(r, view, CFG) === i : layout.reach[r].includes(i)));
   return from < 0 ? null : lines[from][0].c;
 }
@@ -950,6 +1118,7 @@ function tapDot(i) {
   if (phase !== 'playing' || stops[i].bus) return;
   const closed = closedBy(i);
   if (closed) { hint(`Closed until bus ${letters[closed[1]]} leaves`); tone(90, 0.15, 0.2); return; }
+  if (spent.includes(i)) { hint('The bridge is gone'); tone(90, 0.15, 0.2); return; }
   const now = snapshot();
   if (picked !== null) {
     if (allowedStops(now, seatsOf(depot[picked][0]), CFG).includes(i)) sendBus(picked, i);
@@ -966,6 +1135,7 @@ function tapDot(i) {
   sendBus(lane, i);
 }
 function sendBus(lane, i) {
+  if (!spend()) { picked = null; return; }
   picked = null;
   if (!levelHintOn) hint('');
   const b = depot[lane].shift();
@@ -998,10 +1168,70 @@ function twist(index) {
   if (phase !== 'playing') return;
   const lock = lockedBy(index);
   if (lock) { hint(`The bridge opens when bus ${letters[lock[1]]} leaves`); tone(90, 0.15, 0.2); return; }
+  if (!spend()) return;
   clearLevelHint();
   discs[index].k++;
-  discs[index].vel += 9;
+  if (!discs[index].kind) discs[index].vel += 9;
   tone(190, 0.14, 0.13);
+}
+function toolLabel(t) {
+  t.label.innerHTML = badge(t.kind === 'merge' ? 'bridge' : t.kind, t.uses, COLOURS[t.c === undefined ? 0 : t.c].css);
+  t.label.style.opacity = t.uses ? 1 : 0.45;
+}
+function useTool(i) {
+  if (phase !== 'playing') return;
+  const t = tools[i];
+  if (!canUse(snapshot(), CFG, i)) { hint(t.uses ? 'Nothing to change yet' : 'All used up'); tone(90, 0.15, 0.2); return; }
+  if (!spend()) return;
+  clearLevelHint();
+  const line = lines[t.river], front = line.filter((p) => p.block === line[0].block);
+  if (t.kind === 'merge') {
+    const into = lines[t.into], movers = line.splice(0), bz = t.at[1], ax = geo.rivers[t.into].ax;
+    const starts = movers.map((p) => linePos(p));
+    movers.forEach((p) => { p.river = t.into; });
+    into.push(...movers);
+    joinBlocks(into);
+    layoutLine(into);
+    movers.forEach((p, n) => {
+      const lat = (p.lane - 1) * 0.66, [sx] = starts[n];
+      p.walk = trail([starts[n], [sx, bz], [ax + lat, bz], linePos({ ...p, s: p.target, back: true }), linePos({ ...p, s: p.target })]);
+      p.u = -n * 0.08;
+      p.walkS = p.target;
+    });
+    t.uses--;
+    toolLabel(t);
+    tone(220, 0.25, 0.15);
+    return;
+  }
+  line.splice(0, front.length);
+  if (t.kind === 'loop') {
+    const last = line[line.length - 1], block = last && last.c === front[0].c ? last.block : ++blockSeq, [cx, cz] = t.at;
+    front.forEach((p) => { p.block = block; });
+    line.push(...front);
+    layoutLine(line);
+    front.forEach((p, n) => {
+      const [sx, sz] = linePos(p), a0 = Math.atan2(sz - cz, sx - cx), r = 1.7 + p.lane * 0.3, points = [[sx, sz]];
+      for (let i = 0; i <= 16; i++) points.push([cx + Math.cos(a0 - i / 16 * Math.PI * 1.7) * r, cz + Math.sin(a0 - i / 16 * Math.PI * 1.7) * r]);
+      points.push(linePos({ ...p, s: p.target, back: true }), linePos({ ...p, s: p.target }));
+      p.walk = trail(points);
+      p.u = -n * 0.25;
+      p.walkS = p.target;
+    });
+  } else {
+    front.forEach((p) => {
+      p.c = t.c;
+      bodies.setColorAt(p.id, paintColor.setHex(COLOURS[t.c].dark));
+      heads.setColorAt(p.id, paintColor.setHex(COLOURS[t.c].body));
+    });
+    bodies.instanceColor.needsUpdate = heads.instanceColor.needsUpdate = true;
+    const next = line[0];
+    if (next && next.c === t.c) line.filter((p) => p.block === next.block).forEach((p) => { p.block = front[0].block; });
+    line.unshift(...front);
+    burst(t.at[0], 1.5, t.at[1], COLOURS[t.c].body, 24);
+  }
+  t.uses--;
+  toolLabel(t);
+  tone(300, 0.14, 0.13);
 }
 function showCombo() {
   const node = el('combo');
@@ -1018,7 +1248,7 @@ function releaseFlow(dt) {
     acc[r] = Math.min(acc[r] + dt * RATE, 3);
     while (acc[r] >= 1) {
       const head = line[0];
-      if (!head || head.s > GATE + 1) break;
+      if (!head || head.walk || head.s > GATE + 1) break;
       const i = routeOf(r), stop = i === null ? null : stops[i];
       if (!stop || !wants(stop, head.c)) { acc[r] = 0; break; }
       acc[r] -= 1;
@@ -1057,6 +1287,11 @@ function sendOff(stop) {
   flying.push({ mesh: b.mesh, path, speed: 0, face: b.face });
   stop.bus = null;
   gone.push(b.id);
+  if (CFG.once.includes(i)) {
+    spent.push(i);
+    const rope = blockers.find((x) => x.once === i);
+    setTimeout(() => { rope.open = true; world.remove(rope.mesh); rope.label.remove(); burst(rope.x, 0.6, rope.z, MODEL_COLOURS.Wood, 26); tone(110, 0.3, 0.2); }, 700);
+  }
   refreshLabels();
   combo++;
   bestCombo = Math.max(bestCombo, combo);
@@ -1078,17 +1313,17 @@ function saveStars(i, n) {
   try { localStorage.setItem('rivers-stars', JSON.stringify(all)); } catch (e) {}
 }
 function nextBuilt(i) {
-  for (let n = i + 1; n < LEVELS.length; n++) if (LEVELS[n]) return n;
+  for (let n = i + 1; n < LEVELS.length; n++) if (LEVELS[n] && !LEVELS[n].lab) return n;
   return null;
 }
-function finish(won) {
+function finish(won, why) {
   phase = 'over';
   picked = null;
   const buses = level.lanes.flat().length;
-  const stars = level.par ? (clock <= level.par ? 3 : clock <= level.par * 1.5 ? 2 : 1) : bestCombo >= Math.ceil(buses * 0.7) ? 3 : bestCombo >= Math.ceil(buses * 0.4) ? 2 : 1;
+  const stars = level.moves ? 3 : level.par ? (clock <= level.par ? 3 : clock <= level.par * 1.5 ? 2 : 1) : bestCombo >= Math.ceil(buses * 0.7) ? 3 : bestCombo >= Math.ceil(buses * 0.4) ? 2 : 1;
   el('stars').textContent = won ? '★'.repeat(stars).padEnd(3, '☆') : '';
   el('endTitle').textContent = won ? 'All aboard!' : 'No way out';
-  el('endText').textContent = won ? (level.par ? `${TOTAL} people home in ${minutes(clock)}. Target ${minutes(level.par)}.` : `${TOTAL} people home. Best combo ×${bestCombo}.`) : 'No crowd can reach its bus and no bus can come. Try a different bus order.';
+  el('endText').textContent = won ? (level.par ? `${TOTAL} people home in ${minutes(clock)}. Target ${minutes(level.par)}.` : `${TOTAL} people home. Best combo ×${bestCombo}.`) : why || 'No crowd can reach its bus and no bus can come. Try a different bus order.';
   const next = won ? nextBuilt(levelIndex) : null;
   if (won) saveStars(levelIndex, stars);
   el('endMain').textContent = next !== null ? 'Next level' : won ? 'All levels' : 'Try again';
@@ -1101,12 +1336,13 @@ function finish(won) {
 function isJammed() {
   if (runners > 0 || stops.some((st) => st.bus && !st.bus.parked)) return false;
   if (!lines.some((line) => line.length)) return false;
-  if (flowMoves(snapshot(), CFG).some((m) => m[0] === 'call')) return false;
+  if (flowMoves(snapshot(), CFG).some((m) => m[0] !== 'spin')) return false;
   for (let mask = 0; mask < (1 << discs.length); mask++) {
     const k = discs.map((disc, d) => (lockedBy(d) ? disc.k % 2 : (mask >> d) & 1)), view = routeView(k);
     for (let r = 0; r < lines.length; r++) {
       const head = lines[r][0];
-      if (head && wants(stops[routeStop(r, view, CFG)], head.c)) return false;
+      const i = routeStop(r, view, CFG);
+      if (head && i !== null && wants(stops[i], head.c)) return false;
     }
   }
   return true;
@@ -1118,9 +1354,16 @@ function drawPeople(dt, time) {
     let x, z, y = 0.39, scale = 1;
     if (p.state === 'gone') { scale = 0; x = z = 0; }
     else if (p.state === 'line') {
-      p.s = p.s === p.target ? p.s : Math.max(p.target, p.s - (phase === 'playing' ? WALK * dt : 0));
-      [x, z] = linePos(p);
-      y += Math.abs(Math.sin(time * 9 + p.bob)) * 0.05;
+      if (p.walk) {
+        p.u += RUN * dt;
+        [x, z] = sample(p.walk, Math.max(0, p.u));
+        y += Math.abs(Math.sin(time * 15 + p.bob)) * 0.16;
+        if (p.u >= p.walk.total) { p.walk = null; p.s = p.walkS; }
+      } else {
+        p.s = p.s === p.target ? p.s : Math.max(p.target, p.s - (phase === 'playing' ? WALK * dt : 0));
+        [x, z] = linePos(p);
+        y += Math.abs(Math.sin(time * 9 + p.bob)) * 0.05;
+      }
     } else if (p.state === 'run') {
       p.u += RUN * dt;
       [x, z] = sample(p.path, p.u);
@@ -1155,7 +1398,7 @@ function drawBuses(dt, time) {
     if (!b.parked) {
       b.mesh.position.y = 0.1;
       if (stepAlong(b, dt, true)) { parkNow(i); b.squash = 1; }
-    }
+    } else b.mesh.position.x = g.parkX;
     turnToward(b.mesh, b.face, dt);
     b.size = Math.min(1, b.size + dt * 2.4);
     b.squash = Math.max(0, b.squash - dt * 7);
@@ -1180,6 +1423,7 @@ function drawLot(dt, time) {
     b.mesh.scale.setScalar(size);
     b.label.classList.toggle('front', j === 0);
     place(b.label, m.x, 2 * size + hop, m.z);
+    b.label.style.visibility = parseFloat(b.label.style.top) < titleBottom + 10 ? 'hidden' : '';
   }));
 }
 function drawPops(dt) {
@@ -1223,6 +1467,9 @@ function updateLabels() {
     if (colour !== null) { dot.style.background = COLOURS[colour].css; place(dot, g.doorX, 0.4, g.doorZ); }
   });
   blockers.forEach((x) => { if (!x.open) place(x.label, x.x, 1.5, x.z); });
+  tools.forEach((t) => { if (t.plank) t.plank.rotation.z += ((t.uses ? 1.25 : 0) - t.plank.rotation.z) * Math.min(1, 1 / 10); });
+  tools.forEach((t) => (t.kind === 'paint' ? place(t.label, t.at[0], 3.6, t.at[1]) : place(t.label, t.at[0] + 2.6, 0.4, t.at[1] - 2)));
+  if (flipLabel) { const d = discs.find((x) => x.kind); place(flipLabel, d.x, 0.4, d.z); }
   geo.rivers.forEach((river, r) => {
     const box = labels.blocks[r], head = lines[r][0];
     const html = head ? `<i style="background:${COLOURS[head.c].css}">${lines[r].filter((p) => p.block === head.block).length}</i>` : '';
@@ -1235,9 +1482,14 @@ function updateLabels() {
 function update(dt) {
   const time = performance.now() / 1000;
   discs.forEach((d) => {
-    d.vel += (d.k * Math.PI / 2 - d.spin) * 220 * dt - d.vel * 18 * dt;
+    const target = d.kind === 'slide' ? (d.k % 2) * d.shift : d.k * Math.PI / 2;
+    d.vel += (target - d.spin) * 220 * dt - d.vel * 18 * dt;
     d.spin += d.vel * dt;
-    d.spinner.rotation.y = -d.spin;
+    if (d.kind === 'points') { d.straight.visible = d.k % 2 === 0; d.crossed.visible = !d.straight.visible; }
+    else if (d.kind === 'slide') {
+      d.x = d.spinner.position.x = d.x0 + d.spin;
+      d.stops.forEach((i) => { GEO[i].parkX = GEO[i].doorX = GEO[i].baseX + d.spin; });
+    } else d.spinner.rotation.y = -d.spin;
   });
   if (phase === 'countdown') {
     const before = Math.ceil(countdown);
@@ -1271,6 +1523,7 @@ function update(dt) {
   drawPops(dt);
   updateLabels();
   if (phase === 'playing' && isJammed()) finish(false);
+  if (phase === 'playing' && level.moves && taps >= level.moves && !runners && sinceFlow > 1.2 && stops.every((st) => !st.bus || st.bus.parked) && !lines.some((l) => l.some((p) => p.walk))) finish(false, 'Out of taps. Plan the order before you tap.');
   shake = Math.max(0, shake - dt * 1.6);
   camera.position.copy(camera.userData.base);
   camera.position.x += (Math.random() - 0.5) * shake;
@@ -1285,6 +1538,7 @@ function resize() {
   camera.userData.base = new THREE.Vector3(0, 0.95, 0.31).normalize().multiplyScalar(distance).add(camera.userData.look);
   camera.aspect = aspect;
   FAR = Math.min(30, tan * distance * aspect + 3);
+  titleBottom = el('top').getBoundingClientRect().bottom;
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
 }
@@ -1316,8 +1570,8 @@ const TEST_MODE = new URLSearchParams(location.search).has('test');
 function renderMenu() {
   const stars = loadStars();
   el('tiles').innerHTML = LEVELS.map((lv, i) => {
-    if (!TEST_MODE && i > 0 && !stars[i - 1]) return `<button class="tile" disabled><b>${i + 1}</b>🔒</button>`;
-    return `<button class="tile" data-level="${i}"><b>${i + 1}</b>${lv.name}<small>${'★'.repeat(stars[i] || 0).padEnd(3, '☆')}</small></button>`;
+    if (!TEST_MODE && !lv.lab && i > 0 && !stars[i - 1]) return `<button class="tile" disabled><b>${i + 1}</b>${icon('lock')}</button>`;
+    return `<button class="tile" data-level="${i}"><b>${lv.lab ? 'Lab' : i + 1}</b>${lv.name}<small>${'★'.repeat(stars[i] || 0).padEnd(3, '☆')}</small></button>`;
   }).join('');
 }
 
@@ -1333,7 +1587,9 @@ renderer.domElement.addEventListener('pointerdown', (e) => {
     if (Math.abs(point.x - p.x) < 1.8 && Math.abs(point.z - p.z) < 2) { if (phase === 'playing') callLane(l); return; }
     if (Math.abs(point.x - p.x) < 1.8 && point.z < p.z && depot[l].length > 1) { hint('Only the front bus can leave'); tone(90, 0.15, 0.2); return; }
   }
-  discs.forEach((d, i) => { if (Math.hypot(point.x - d.x, point.z - d.z) < 4.6) twist(i); });
+  const tool = tools.findIndex((t) => Math.hypot(point.x - t.at[0], point.z - t.at[1]) < 1.8);
+  if (tool >= 0) { useTool(tool); return; }
+  discs.forEach((d, i) => { if (Math.hypot(point.x - d.x, point.z - d.z) < (d.reach || 4.6)) twist(i); });
 });
 el('tiles').addEventListener('click', (e) => {
   const tile = e.target.closest('.tile');

@@ -20,6 +20,8 @@ function newState(stage, cfg) {
     lanes: stage.lanes.map((lane) => lane.map((bus) => ({ ...bus, key: cfg.unchain ? undefined : bus.key }))),
     stops: [0, 1, 2, 3].map(() => ({ bus: null, plat: [0, 0, 0, 0] })),
     k: [0, 0],
+    uses: (cfg.tools || []).map((t) => t.uses),
+    spent: [],
     gone: [],
     moves: 0
   };
@@ -31,6 +33,8 @@ function clone(s) {
     lanes: s.lanes.map((lane) => lane.slice()),
     stops: s.stops.map((stop) => ({ bus: stop.bus && { ...stop.bus }, plat: stop.plat.slice() })),
     k: s.k.slice(),
+    uses: (s.uses || []).slice(),
+    spent: (s.spent || []).slice(),
     gone: s.gone.slice(),
     moves: s.moves
   };
@@ -38,8 +42,21 @@ function clone(s) {
 
 const busSeats = (bus) => bus.n + (bus.n2 || 0);
 const wantsColour = (bus) => (bus.fill < bus.n ? bus.c : bus.c2);
-const isOpen = (s, cfg, i) => !(cfg.closed || []).some(([stop, key]) => stop === i && !s.gone.includes(key));
+const isOpen = (s, cfg, i) => !(s.spent || []).includes(i) && !(cfg.closed || []).some(([stop, key]) => stop === i && !s.gone.includes(key));
 const canSpin = (s, cfg, d) => !(cfg.locked || []).some(([disc, key]) => disc === d && !s.gone.includes(key));
+
+const merged = (river) => river.reduce((out, [c, n]) => {
+  const last = out[out.length - 1];
+  if (last && last[0] === c) last[1] += n; else out.push([c, n]);
+  return out;
+}, []);
+const canUse = (s, cfg, t) => {
+  const tool = cfg.tools[t], river = s.rivers[tool.river];
+  if (!(s.uses[t] > 0)) return false;
+  if (tool.kind === 'loop') return river.length > 1;
+  if (tool.kind === 'merge') return river.length > 0;
+  return river.length > 0 && river[0][0] !== tool.c;
+};
 
 const platUsed = (stop) => stop.plat[0] + stop.plat[1] + stop.plat[2] + stop.plat[3];
 
@@ -75,6 +92,7 @@ function settle(s, cfg, events) {
       if (!bus || bus.fill < busSeats(bus)) return;
       stop.bus = null;
       s.gone.push(bus.id);
+      if ((cfg.once || []).includes(i)) s.spent.push(i);
       events.push({ type: 'depart', stop: i, bus });
       if (bus.transfer) {
         s.rivers[RIVER_S].push([bus.c, bus.n]);
@@ -110,6 +128,18 @@ function apply(s, cfg, move) {
   if (move[0] === 'spin') {
     next.k[move[1]] ^= 1;
     events.push({ type: 'spin', disc: move[1] });
+  } else if (move[0] === 'tool') {
+    const tool = cfg.tools[move[1]], river = next.rivers[tool.river];
+    if (tool.kind === 'merge') {
+      next.rivers[tool.into] = merged(next.rivers[tool.into].concat(river));
+      next.rivers[tool.river] = [];
+    } else {
+      const front = river.shift();
+      if (tool.kind === 'loop') river.push(front); else river.unshift([tool.c, front[1]]);
+      next.rivers[tool.river] = merged(river);
+    }
+    next.uses[move[1]]--;
+    events.push({ type: 'tool', tool: move[1] });
   } else if (move[0] === 'shunt') {
     const r = move[1], i = routeStop(r, next, cfg), [c, n] = next.rivers[r].shift();
     next.stops[i].plat[c] += n;
@@ -158,7 +188,9 @@ const LAYOUTS = {
       if (r < 2) return (r === 0) === (a === 0) ? 0 : (b === 0 ? 1 : 2);
       return (r === 2) === (c === 0) ? (b === 0 ? 2 : 1) : 3;
     }
-  }
+  },
+  cross: { stops: 2, discs: 1, reach: [[0, 1], [0, 1]], route: (r, s) => ((r === 0) === (s.k[0] === 0) ? 0 : 1) },
+  slide: { stops: 2, discs: 1, reach: [[0], [0, 1], [1]], route: (r, s) => (r - s.k[0] === 0 || r - s.k[0] === 1 ? r - s.k[0] : null) }
 };
 
 function allowedStops(s, bus, cfg) {
@@ -174,7 +206,8 @@ function flowMoves(s, cfg) {
   s.lanes.forEach((lane, l) => {
     if (lane[0] && canCall(s, l)) allowedStops(s, lane[0], cfg).forEach((i) => out.push(['call', l, i]));
   });
+  (cfg.tools || []).forEach((_, t) => { if (canUse(s, cfg, t)) out.push(['tool', t]); });
   return out;
 }
 
-if (typeof module !== 'undefined') module.exports = { RIVER_E, RIVER_W, RIVER_S, STOP_N, STOP_E, STOP_W, STOP_BAY, routeStop, newState, clone, platUsed, settle, canCall, legalMoves, apply, isWon, isJammed, LAYOUTS, allowedStops, flowMoves, busSeats, wantsColour, isOpen, canSpin };
+if (typeof module !== 'undefined') module.exports = { RIVER_E, RIVER_W, RIVER_S, STOP_N, STOP_E, STOP_W, STOP_BAY, routeStop, newState, clone, platUsed, settle, canCall, legalMoves, apply, isWon, isJammed, LAYOUTS, allowedStops, flowMoves, busSeats, wantsColour, isOpen, canSpin, canUse };
