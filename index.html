@@ -68,7 +68,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/BufferGeometryUtils.js"></script>
-<script src="puzzle-rules.js?v=14"></script>
+<script src="puzzle-rules.js?v=15"></script>
 <script>
 const UNIT = 10, MAX_PEOPLE = 640, R = 2.6, GATE = R + 0.5, LANES = 3, ROW = 0.46, GAP = 0.5, WALK = 6.5, RUN = 8.5, RATE = 36, STALL = 3;
 const LOT_PITCH = 2.6, LOT_FRONT = -21, LOT_SCALE = 0.62, FRONT_SCALE = 0.86, AISLE = -18.3, DRIVE = 30, ACCEL = 60, BRAKE = 45, FAR_Z = 34;
@@ -176,6 +176,30 @@ const GEOMETRY = {
     roads: [[0, -9.5, 2.5, 15], [-24, -2, 40, 2.5], [24, -2, 40, 2.5]],
     stops: [{ ax: 0, az: -2, port: N }],
     rivers: [{ ax: 0, az: -2, port: W, chip: [-7.6, -4.9], right: true }, { ax: 0, az: -2, port: E, chip: [7.6, -4.9] }]
+  },
+  belt: {
+    discs: [],
+    belts: [{ x: 0, z0: -10, z1: 10, disc: 0, river: 0 }],
+    roads: [[0, -13.5, 2.5, 7.1], [0, 25, 2.5, 30]],
+    plazas: [[0, 0, 3.6, 20.4]],
+    stops: [{ ax: 0, az: -12.5, port: N, park: [0, -13.4], door: [0, -11.2] }, { ax: 0, az: 12.5, port: S, park: [0, 13.4], door: [0, 11.2] }],
+    rivers: [{ belt: 0, ends: [{ ax: 0, az: -12.5, port: S, chip: [2.7, -8.6] }, { ax: 0, az: 12.5, port: N, chip: [2.7, 8.6] }] }]
+  },
+  belts: {
+    discs: [],
+    belts: [-4, 4].map((x, i) => ({ x, z0: -10, z1: 10, disc: i, river: i })),
+    roads: [-4, 4].flatMap((x) => [[x, -13.5, 2.5, 7.1], [x, 25, 2.5, 30]]),
+    plazas: [-4, 4].map((x) => [x, 0, 3.6, 20.4]),
+    stops: [-4, 4].flatMap((x) => [{ ax: x, az: -12.5, port: N, park: [x, -13.4], door: [x, -11.2] }, { ax: x, az: 12.5, port: S, park: [x, 13.4], door: [x, 11.2] }]),
+    rivers: [-4, 4].map((x, i) => ({ belt: i, right: !i, ends: [{ ax: x, az: -12.5, port: S, chip: [x + (i ? 2.7 : -2.7), -8.6] }, { ax: x, az: 12.5, port: N, chip: [x + (i ? 2.7 : -2.7), 8.6] }] }))
+  },
+  beltjunction: {
+    discs: [[0, -8]],
+    belts: [{ x: 0, z0: -5.3, z1: 10, disc: 1, river: 0 }],
+    roads: [[24, -8, 42, 2.5], [-24, -8, 42, 2.5], [0, 25, 2.5, 30]],
+    plazas: [[0, 2.35, 3.6, 15.7]],
+    stops: [{ ax: 0, az: -8, port: W }, { ax: 0, az: -8, port: E }, { ax: 0, az: 12.5, port: S, park: [0, 13.4], door: [0, 11.2] }],
+    rivers: [{ belt: 1, ends: [{ ax: 0, az: -8, port: S, disc: 0, chip: [2.7, -3.4] }, { ax: 0, az: 12.5, port: N, chip: [2.7, 8.6] }] }]
   },
   carousel: {
     discs: [],
@@ -560,6 +584,34 @@ const LEVELS = [
     lanes: [[{"id":0,"c":0,"n":2},{"id":4,"c":1,"n":4},{"id":2,"c":2,"n":4}],[{"id":1,"c":1,"n":3},{"id":5,"c":2,"n":3}],[{"id":6,"c":0,"n":2},{"id":3,"c":0,"n":3}]],
     hint: 'Golden-hat jokers board any bus',
     props: () => {}
+  },
+  {
+    name: 'Conveyor', lab: true, layout: 'belt', theme: 'depot',
+    rivers: [[[0,2],[2,2],[1,5],[0,2]]],
+    lanes: [[{"id":1,"c":1,"n":3},{"id":2,"c":2,"n":2},{"id":4,"c":1,"n":2}],[{"id":0,"c":0,"n":2},{"id":3,"c":0,"n":2}]],
+    hint: 'Tap the belt to reverse it. Both ends have a stop',
+    props: () => {}
+  },
+  {
+    name: 'Twin Belts', lab: true, layout: 'belts', theme: 'station',
+    rivers: [[[1,2],[0,6],[1,2]],[[2,2],[0,2],[1,3],[2,3]]],
+    lanes: [[{"id":0,"c":0,"n":3},{"id":1,"c":1,"n":2},{"id":3,"c":0,"n":3}],[{"id":7,"c":1,"n":2},{"id":2,"c":2,"n":3},{"id":6,"c":0,"n":2}],[{"id":5,"c":2,"n":2},{"id":4,"c":1,"n":3}]],
+    hint: 'Two belts, four stops',
+    props: () => {}
+  },
+  {
+    name: 'Linked Belts', lab: true, layout: 'belts', theme: 'terminal', gears: [[1], [0]],
+    rivers: [[[1,3],[2,2],[1,4],[0,2]],[[0,2],[2,2],[0,2]]],
+    lanes: [[{"id":0,"c":0,"n":2},{"id":2,"c":2,"n":2},{"id":5,"c":2,"n":2}],[{"id":4,"c":1,"n":2},{"id":1,"c":1,"n":3},{"id":7,"c":1,"n":2}],[{"id":3,"c":0,"n":2},{"id":6,"c":0,"n":2}]],
+    hint: 'One motor drives both belts',
+    props: () => {}
+  },
+  {
+    name: 'Belt Junction', lab: true, layout: 'beltjunction', theme: 'square',
+    rivers: [[[0,4],[2,4],[1,4]]],
+    lanes: [[{"id":5,"c":2,"n":2},{"id":3,"c":0,"n":2}],[{"id":4,"c":1,"n":2},{"id":0,"c":0,"n":2}],[{"id":2,"c":2,"n":2},{"id":1,"c":1,"n":2}]],
+    hint: 'The belt feeds the turntable or the bottom stop',
+    props: () => {}
   }
 ];
 
@@ -881,6 +933,24 @@ function buildWorld() {
       slab(new THREE.CylinderGeometry(0.8, 0.8, 0.06, 24), 0x2F3546, x, 0.14, z);
     });
   });
+  (geo.belts || []).forEach((b) => {
+    const len = b.z1 - b.z0, cz = (b.z0 + b.z1) / 2, chevrons = [];
+    slab(roundedSlab(3.3, 0.12, len + 0.5, 0.5), KERB, b.x, 0.14, cz);
+    slab(new THREE.BoxGeometry(2.6, 0.04, len), 0x3A4256, b.x, 0.22, cz);
+    [b.z0, b.z1].forEach((z) => slab(new THREE.CylinderGeometry(0.24, 0.24, 3, 12).rotateZ(Math.PI / 2), 0x90A0BC, b.x, 0.22, z));
+    for (let t = -len / 2 + 2; t < len / 2 - 0.4; t += 1.6) [-1, 1].forEach((side) => {
+      chevrons.push(coloured(new THREE.BoxGeometry(0.85, 0.02, 0.16), new THREE.Color(0x5B6680)).rotateY(side * 0.6).translate(side * 0.34, 0.25, t + 0.22));
+    });
+    const arrows = levelMesh(chevrons, false), spinner = new THREE.Group();
+    spinner.add(arrows);
+    spinner.position.set(b.x, 0, cz);
+    world.add(spinner);
+    discs[b.disc] = { kind: 'belt', belt: b, x: b.x, z: cz, arrows, hit: (p) => Math.abs(p.x - b.x) < 1.8 && p.z > b.z0 - 0.5 && p.z < b.z1 + 0.5, spinner, k: 0, spin: 0, vel: 0 };
+  });
+  if (level.gears && geo.belts) {
+    slab(new THREE.BoxGeometry(4.8, 0.22, 0.34), 0x90A0BC, 0, 0.3, 0);
+    slab(new THREE.CylinderGeometry(0.8, 0.8, 0.4, 16), 0xFFC233, 0, 0.3, 0);
+  }
   const f = geo.flip;
   if (f && f.kind === 'tunnel') discs.push({ kind: 'tunnel', x: f.x, z: f.z, reach: f.reach, spinner: new THREE.Group(), k: 0, spin: 0, vel: 0 });
   if (f && f.kind === 'points') {
@@ -1086,7 +1156,7 @@ function reset() {
   if (geo.ring) discs.slice(0, 2).sort((a, b) => b.theta0 - a.theta0).forEach((d, i) => { discs[i] = d; d.x = geo.discs[i][0]; d.theta = d.thetaT = d.theta0; });
   clockwork = level.clock ? { d: level.clock.disc, t: 0, frozen: false, label: pin('badge', badge('clock')) } : null;
   holes = geo.rivers.filter((river) => river.hole).map((river, r) => ({ river, r, label: pin('badge', `<i>${'ABC'[r]}</i>`), exit: pin('badge', '') }));
-  const flip = discs.find((d) => d.kind);
+  const flip = discs.find((d) => d.kind && d.kind !== 'belt');
   flipLabel = flip ? pin('badge', badge(flip.kind)) : null;
   letters = {};
   [...depot.flat().map((b) => b.key), ...CFG.closed.map((c) => c[1]), ...CFG.locked.map((l) => l[1])].forEach((key) => { if (key !== undefined && letters[key] === undefined) letters[key] = String.fromCharCode(65 + Object.keys(letters).length); });
@@ -1172,12 +1242,18 @@ function layoutLine(line, instant) {
     if (instant) p.s = p.target;
   });
 }
+const riverAt = (r) => { const river = geo.rivers[r]; return river.ends ? river.ends[kOf(discs[river.belt])] : river; };
+function reverseBelt(d) {
+  const river = geo.rivers[d.belt.river], L = Math.abs(river.ends[0].az - river.ends[1].az), line = lines[d.belt.river];
+  line.forEach((p) => { p.s = L - p.s; });
+  line.reverse();
+}
 function linePos(p) {
-  const river = geo.rivers[p.river], [dx, dz] = PORT[river.port], lat = (p.lane - 1) * 0.66 + (p.back ? 1.9 : 0);
+  const river = riverAt(p.river), [dx, dz] = PORT[river.port], lat = (p.lane - 1) * 0.66 + (p.back ? 1.9 : 0);
   return [river.ax + dx * p.s + (dz ? lat : 0), river.az + dz * p.s + (dx ? lat : 0)];
 }
 function buildPath(p, stopIndex) {
-  const g = GEO[stopIndex], lat = (p.lane - 1) * 0.66, river = geo.rivers[p.river], points = [linePos(p)];
+  const g = GEO[stopIndex], lat = (p.lane - 1) * 0.66, river = riverAt(p.river), points = [linePos(p)];
   if (river.junction) points.push([river.ax + lat * 0.5, river.az]);
   let disc = river.disc, port = river.port;
   for (let guard = 0; guard < 6 && disc !== undefined; guard++) {
@@ -1428,8 +1504,9 @@ function twist(index) {
   clearLevelHint();
   discs[index].k++;
   if (kind === 'train') advanceTrain();
+  if (kind === 'belt') reverseBelt(discs[index]);
   if (!discs[index].kind) discs[index].vel += 9;
-  if (CFG.gears) CFG.gears[index].forEach((n) => { discs[n].k--; discs[n].vel -= 9; });
+  if (CFG.gears) CFG.gears[index].forEach((n) => { discs[n].k--; if (discs[n].kind === 'belt') reverseBelt(discs[n]); else discs[n].vel -= 9; });
   if (kind === 'ring') {
     [discs[0], discs[1]] = [discs[1], discs[0]];
     discs.slice(0, 2).forEach((d, i) => { d.x = geo.discs[i][0]; d.thetaT += Math.PI; });
@@ -1628,7 +1705,7 @@ function isJammed() {
     const k = discs.map((disc, d) => (lockedBy(d) ? kOf(disc) : Math.floor(mask / T ** d) % T)), view = routeView(k);
     if (flowMoves({ ...now, k }, CFG).some((m) => m[0] === 'call')) return false;
     for (let r = 0; r < lines.length; r++) {
-      const head = lines[r][0];
+      const belt = geo.rivers[r].belt, head = belt !== undefined && k[belt] !== kOf(discs[belt]) ? lines[r][lines[r].length - 1] : lines[r][0];
       const i = routeStop(r, view, CFG);
       if (head && i !== null && wants(stops[i], head.c)) return false;
     }
@@ -1770,7 +1847,7 @@ function updateLabels() {
   blockers.forEach((x) => { if (!x.open) place(x.label, x.x, 1.5, x.z); });
   tools.forEach((t) => { if (t.plank) t.plank.rotation.z += ((t.uses ? 1.25 : 0) - t.plank.rotation.z) * Math.min(1, 1 / 10); });
   tools.forEach((t) => (t.kind === 'paint' ? place(t.label, t.at[0], 3.6, t.at[1]) : place(t.label, t.at[0] + 2.6, 0.4, t.at[1] - 2)));
-  if (flipLabel) { const d = discs.find((x) => x.kind); place(flipLabel, d.x, 0.4, d.z); }
+  if (flipLabel) { const d = discs.find((x) => x.kind && x.kind !== 'belt'); place(flipLabel, d.x, 0.4, d.z); }
   if (clockwork) { const d = discs[clockwork.d]; place(clockwork.label, d.x + 3.6, 0.4, d.z - 2.6); }
   holes.forEach((h, i) => {
     place(h.label, h.river.hole[0] + 2.1, 0.4, h.river.hole[1] - 0.6);
@@ -1783,7 +1860,7 @@ function updateLabels() {
     const html = head ? `<i style="background:${COLOURS[head.c].css}">${lines[r].filter((p) => p.block === head.block).length}</i>` : '';
     if (html !== lastBlocks[r]) { box.innerHTML = html; lastBlocks[r] = html; }
     box.style.display = html ? '' : 'none';
-    place(box, river.chip[0], 0.2, river.chip[1]);
+    place(box, riverAt(r).chip[0], 0.2, riverAt(r).chip[1]);
   });
 }
 
@@ -1809,6 +1886,9 @@ function update(dt) {
         g.doorZ = d.z + g.dz * 6.4;
         g.face = Math.atan2(-g.dx, -g.dz);
       });
+    } else if (d.kind === 'belt') {
+      d.spinner.rotation.y = kOf(d) ? Math.PI : 0;
+      d.arrows.position.z = -((performance.now() / 1000 * 1.4) % 1.6);
     } else if (!d.kind) {
       if (d.theta !== undefined) {
         d.theta += (d.thetaT - d.theta) * Math.min(1, dt * 4);

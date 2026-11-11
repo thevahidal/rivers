@@ -151,7 +151,11 @@ function apply(s, cfg, move) {
   } else if (move[0] === 'spin') {
     const turns = (layout && layout.turns) || 2;
     if (layout && layout.swap && move[1] === 2) [next.k[0], next.k[1]] = [next.k[1], next.k[0]];
-    [move[1], ...((cfg.gears && cfg.gears[move[1]]) || [])].forEach((d) => { next.k[d] = (next.k[d] + 1) % turns; });
+    [move[1], ...((cfg.gears && cfg.gears[move[1]]) || [])].forEach((d) => {
+      next.k[d] = (next.k[d] + 1) % turns;
+      const belt = layout && layout.belts && layout.belts.find((b) => b.disc === d);
+      if (belt) next.rivers[belt.river].reverse();
+    });
     events.push({ type: 'spin', disc: move[1] });
   } else if (move[0] === 'tool') {
     const tool = cfg.tools[move[1]], river = next.rivers[tool.river];
@@ -251,6 +255,9 @@ const reachOf = (topo, discs) => topo.entries.map((_, r) => [...new Set(Array.fr
 LAYOUTS.grid = { stops: 4, discs: 4, route: (r, s) => walk(GRID, r, s.k), reach: reachOf(GRID, 4) };
 LAYOUTS.ring = { stops: 3, discs: 3, swap: true, route: (r, s) => walk(RING, r, s.k), reach: reachOf(RING, 2) };
 LAYOUTS.tunnel = { stops: 3, discs: 1, turns: 3, reach: [[0, 1, 2], [0, 1, 2], [0, 1, 2]], route: (r, s) => (r + s.k[0]) % 3 };
+LAYOUTS.belt = { stops: 2, discs: 1, belts: [{ river: 0, disc: 0 }], reach: [[0, 1]], route: (r, s) => s.k[0] };
+LAYOUTS.belts = { stops: 4, discs: 2, belts: [{ river: 0, disc: 0 }, { river: 1, disc: 1 }], reach: [[0, 1], [2, 3]], route: (r, s) => r * 2 + s.k[r] };
+LAYOUTS.beltjunction = { stops: 3, discs: 2, belts: [{ river: 0, disc: 1 }], reach: [[0, 1, 2]], route: (r, s) => (s.k[1] ? 2 : s.k[0] % 2) };
 LAYOUTS.mix = { stops: 1, discs: 0, reach: [[0], [0]], route: () => 0 };
 
 function allowedStops(s, bus, cfg) {
