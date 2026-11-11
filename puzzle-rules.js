@@ -77,6 +77,19 @@ function settle(s, cfg, events) {
         changed = true;
       }
     });
+    if (cfg.layout && LAYOUTS[cfg.layout].loop) s.stops.forEach((stop) => {
+      const bus = stop.bus;
+      if (!bus || bus.fill >= busSeats(bus)) return;
+      const c = wantsColour(bus), cap = bus.fill < bus.n ? bus.n : busSeats(bus);
+      s.rivers[0].forEach((block) => {
+        if (block[0] !== c || bus.fill >= cap) return;
+        const n = Math.min(block[1], cap - bus.fill);
+        block[1] -= n;
+        bus.fill += n;
+        changed = true;
+      });
+      s.rivers[0] = merged(s.rivers[0].filter((block) => block[1] > 0));
+    });
     if (cfg.mix) s.stops.forEach((stop, i) => {
       const bus = stop.bus, [out, a, b] = cfg.mix;
       if (!bus || wantsColour(bus) !== out) return;
@@ -258,12 +271,14 @@ LAYOUTS.tunnel = { stops: 3, discs: 1, turns: 3, reach: [[0, 1, 2], [0, 1, 2], [
 LAYOUTS.belt = { stops: 2, discs: 1, belts: [{ river: 0, disc: 0 }], reach: [[0, 1]], route: (r, s) => s.k[0] };
 LAYOUTS.belts = { stops: 4, discs: 2, belts: [{ river: 0, disc: 0 }, { river: 1, disc: 1 }], reach: [[0, 1], [2, 3]], route: (r, s) => r * 2 + s.k[r] };
 LAYOUTS.beltjunction = { stops: 3, discs: 2, belts: [{ river: 0, disc: 1 }], reach: [[0, 1, 2]], route: (r, s) => (s.k[1] ? 2 : s.k[0] % 2) };
+LAYOUTS.loop = { stops: 3, discs: 1, loop: true, reach: [[0, 1, 2]], route: () => null };
 LAYOUTS.mix = { stops: 1, discs: 0, reach: [[0], [0]], route: () => 0 };
 
 function allowedStops(s, bus, cfg) {
   const layout = LAYOUTS[cfg.layout];
   const stops = Array.from({ length: layout.stops }, (_, i) => i).filter((i) => !s.stops[i].bus && isOpen(s, cfg, i) && (!layout.entry || layout.entry(s) === i));
   const supply = (i, colour) => s.rivers.reduce((sum, river, r) => (layout.reach[r] && layout.reach[r].includes(i) ? sum + river.reduce((n, [c, k]) => (c === colour ? n + k : n), 0) : sum), 0);
+  if (cfg.endless) return stops;
   const have = (i, c) => supply(i, c) + supply(i, JOKER) + (cfg.mix && c === cfg.mix[0] ? 2 * Math.min(supply(i, cfg.mix[1]), supply(i, cfg.mix[2])) : 0);
   return stops.filter((i) => have(i, bus.c) >= bus.n && (!bus.n2 || have(i, bus.c2) >= bus.n2));
 }

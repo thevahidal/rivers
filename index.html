@@ -68,7 +68,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/BufferGeometryUtils.js"></script>
-<script src="puzzle-rules.js?v=15"></script>
+<script src="puzzle-rules.js?v=17"></script>
 <script>
 const UNIT = 10, MAX_PEOPLE = 640, R = 2.6, GATE = R + 0.5, LANES = 3, ROW = 0.46, GAP = 0.5, WALK = 6.5, RUN = 8.5, RATE = 36, STALL = 3;
 const LOT_PITCH = 2.6, LOT_FRONT = -21, LOT_SCALE = 0.62, FRONT_SCALE = 0.86, AISLE = -18.3, DRIVE = 30, ACCEL = 60, BRAKE = 45, FAR_Z = 34;
@@ -176,6 +176,14 @@ const GEOMETRY = {
     roads: [[0, -9.5, 2.5, 15], [-24, -2, 40, 2.5], [24, -2, 40, 2.5]],
     stops: [{ ax: 0, az: -2, port: N }],
     rivers: [{ ax: 0, az: -2, port: W, chip: [-7.6, -4.9], right: true }, { ax: 0, az: -2, port: E, chip: [7.6, -4.9] }]
+  },
+  loop: {
+    discs: [],
+    loop: { x: 0, z0: -8, z1: 6, r: 4, exits: [14 + 2 * Math.PI, 7, 21 + 4 * Math.PI] },
+    plazas: [[0, -1, 11.8, 23.4]],
+    roads: [[0, -14.8, 2.5, 4.5], [-24, -1, 37.4, 2.5], [24, -1, 37.4, 2.5]],
+    stops: [{ ax: 0, az: -8, port: N, park: [0, -14.6], door: [0, -12.9] }, { ax: 0, az: -1, port: E, park: [7.9, -1], door: [5.6, -1] }, { ax: 0, az: -1, port: W, park: [-7.9, -1], door: [-5.6, -1] }],
+    rivers: [{ ax: 0, az: 0, port: S, chip: [0, -1] }]
   },
   belt: {
     discs: [],
@@ -612,6 +620,27 @@ const LEVELS = [
     lanes: [[{"id":5,"c":2,"n":2},{"id":3,"c":0,"n":2}],[{"id":4,"c":1,"n":2},{"id":0,"c":0,"n":2}],[{"id":2,"c":2,"n":2},{"id":1,"c":1,"n":2}]],
     hint: 'The belt feeds the turntable or the bottom stop',
     props: () => {}
+  },
+  {
+    name: 'Travelator', lab: true, layout: 'loop', theme: 'terminal',
+    rivers: [[[0,3],[1,4],[2,3],[0,2],[1,2],[2,3]]],
+    lanes: [[{"id":0,"c":1,"n":4},{"id":1,"c":0,"n":2}],[{"id":2,"c":2,"n":3},{"id":3,"c":0,"n":3}],[{"id":4,"c":2,"n":3},{"id":5,"c":1,"n":2}]],
+    hint: 'The travelator never stops. Tap it to reverse',
+    props: () => {}
+  },
+  {
+    name: 'Rush Hour', lab: true, layout: 'one', theme: 'nightmarket', survival: { time: 90, colours: 3, stars: [300, 500, 700] },
+    rivers: [[[0,3],[1,3]],[[2,3],[0,3]]],
+    lanes: [[{"id":0,"c":0,"n":3},{"id":1,"c":1,"n":3}],[{"id":2,"c":2,"n":3},{"id":3,"c":0,"n":3}],[{"id":4,"c":1,"n":2}]],
+    hint: 'Tap a parked bus to send it off early',
+    props: () => {}
+  },
+  {
+    name: 'Endless City', lab: true, layout: 'twin', theme: 'city', survival: { time: 120, colours: 4, stars: [400, 650, 850] },
+    rivers: [[[0,3],[3,3]],[[1,3],[2,3]],[[3,3],[0,3]]],
+    lanes: [[{"id":0,"c":0,"n":3},{"id":1,"c":3,"n":3}],[{"id":2,"c":1,"n":3},{"id":3,"c":2,"n":3}],[{"id":4,"c":3,"n":3}]],
+    hint: 'Two minutes. Keep every crowd moving',
+    props: () => {}
   }
 ];
 
@@ -808,7 +837,7 @@ const el = (id) => document.getElementById(id);
 const scratch = new THREE.Object3D();
 let audio, phase = 'menu', countdown = 0, people = [], lines = [], acc = [], stops = [], depot = [], flying = [], discs = [];
 let boarded = 0, runners = 0, shake = 0, combo = 0, bestCombo = 0, sinceFlow = 0, labels = {}, lastBlocks = [], lastTick = 0, picked = null;
-let gone = [], letters = {}, blockers = [], clock = 0, tools = [], flipLabel = null, blockSeq = 1000, spent = [], taps = 0, titleBottom = 0, queue = [], leaving = [], clockwork = null, holes = [];
+let gone = [], letters = {}, blockers = [], clock = 0, tools = [], flipLabel = null, blockSeq = 1000, spent = [], taps = 0, titleBottom = 0, queue = [], leaving = [], clockwork = null, holes = [], beltOffset = 0, chevrons = null, timeLeft = 0, refill = 0, nextBusId = 1000;
 let levelIndex = 0, level = null, geo = null, layout = null, CFG = null, GEO = [], TOTAL = 0, FAR = 28, hintTimer, levelHintOn = false;
 
 function tone(freq, length, volume) {
@@ -933,6 +962,27 @@ function buildWorld() {
       slab(new THREE.CylinderGeometry(0.8, 0.8, 0.06, 24), 0x2F3546, x, 0.14, z);
     });
   });
+  if (geo.loop) {
+    const o = geo.loop, stadium = (r, y, h, hex) => {
+      const shape = new THREE.Shape();
+      shape.moveTo(o.x + r, -o.z1);
+      shape.lineTo(o.x + r, -o.z0);
+      shape.absarc(o.x, -o.z0, r, 0, Math.PI, false);
+      shape.lineTo(o.x - r, -o.z1);
+      shape.absarc(o.x, -o.z1, r, Math.PI, Math.PI * 2, false);
+      const g = new THREE.ExtrudeGeometry(shape, { depth: h, bevelEnabled: false, curveSegments: 20 });
+      g.rotateX(-Math.PI / 2);
+      slab(g, hex, 0, y, 0);
+    };
+    stadium(o.r + 1.6, 0.11, 0.06, KERB);
+    stadium(o.r + 1.3, 0.12, 0.08, 0x3A4256);
+    stadium(o.r - 1.3, 0.13, 0.08, KERB);
+    stadium(o.r - 1.55, 0.14, 0.09, theme.ground);
+    const v = THREE.BufferGeometryUtils.mergeBufferGeometries([-1, 1].map((side) => new THREE.BoxGeometry(0.85, 0.02, 0.16).rotateY(side * 0.6).translate(side * 0.34, 0, 0.22)));
+    chevrons = new THREE.InstancedMesh(v, new THREE.MeshStandardMaterial({ color: 0x6B7792, roughness: 0.6 }), Math.floor(loopLength() / 1.6));
+    world.add(chevrons);
+    discs.push({ kind: 'loop', x: o.x, z: (o.z0 + o.z1) / 2, hit: (p) => { const near = p.z < o.z0 ? Math.hypot(p.x - o.x, p.z - o.z0) : p.z > o.z1 ? Math.hypot(p.x - o.x, p.z - o.z1) : Math.abs(p.x - o.x); return Math.abs(near - o.r) < 1.7; }, spinner: new THREE.Group(), k: 0, spin: 0, vel: 0 });
+  }
   (geo.belts || []).forEach((b) => {
     const len = b.z1 - b.z0, cz = (b.z0 + b.z1) / 2, chevrons = [];
     slab(roundedSlab(3.3, 0.12, len + 0.5, 0.5), KERB, b.x, 0.14, cz);
@@ -1056,7 +1106,7 @@ function loadLevel(i) {
   level = LEVELS[i];
   layout = LAYOUTS[level.layout];
   geo = GEOMETRY[level.layout];
-  CFG = { layout: level.layout, caps: [0, 0, 0, 0], closed: level.closed || [], locked: level.locked || [], tools: level.tools || [], once: level.once || [], gears: level.gears, mix: level.mix };
+  CFG = { endless: !!level.survival, layout: level.layout, caps: [0, 0, 0, 0], closed: level.closed || [], locked: level.locked || [], tools: level.tools || [], once: level.once || [], gears: level.gears, mix: level.mix };
   GEO = geo.stops.map((s) => {
     const [dx, dz] = PORT[s.port];
     const door = R + (s.tight ? 1.4 : 1.9), park = R + (s.tight ? 3.4 : 4.3);
@@ -1120,6 +1170,18 @@ function reset() {
   bodies.instanceColor.needsUpdate = heads.instanceColor.needsUpdate = true;
   bodies.count = heads.count = people.length;
   lines.forEach((line) => layoutLine(line, true));
+  beltOffset = 0;
+  if (geo.loop) {
+    const line = lines[0], rows = line.filter((p) => p.lane === 0).length, blocks = new Set(line.map((p) => p.block)).size;
+    const spare = (loopLength() - rows * ROW) / blocks;
+    let u = 0, last = null;
+    line.forEach((p) => {
+      if (last !== null && p.block !== last) u += spare;
+      else if (last !== null && p.lane === 0) u += ROW;
+      last = p.block;
+      p.u0 = u;
+    });
+  }
   depot = level.lanes.map((lane, l) => lane.map((b, j) => {
     const mesh = makeBus(b.c, b.c2);
     mesh.position.set(laneX(l), 0.1, LOT_FRONT - j * LOT_PITCH);
@@ -1199,7 +1261,8 @@ function reset() {
   spent = [];
   taps = 0;
   clock = 0;
-  el('clock').style.display = level.par || level.moves ? '' : 'none';
+  el('clock').style.display = level.par || level.moves || level.survival ? '' : 'none';
+  if (level.survival) { timeLeft = level.survival.time; refill = 0; el('clock').textContent = `⏱ ${minutes(timeLeft)}`; el('clock').classList.remove('late'); }
   showTaps();
   refreshLabels();
   el('combo').style.opacity = 0;
@@ -1242,6 +1305,18 @@ function layoutLine(line, instant) {
     if (instant) p.s = p.target;
   });
 }
+function loopPoint(u, lat) {
+  const o = geo.loop, S = o.z1 - o.z0, A = Math.PI * o.r, P = 2 * S + 2 * A, r = o.r + lat;
+  u = ((u % P) + P) % P;
+  if (u < S) return [o.x + r, o.z1 - u];
+  u -= S;
+  if (u < A) { const a = u / o.r; return [o.x + Math.cos(a) * r, o.z0 - Math.sin(a) * r]; }
+  u -= A;
+  if (u < S) return [o.x - r, o.z0 + u];
+  const a = Math.PI + (u - S) / o.r;
+  return [o.x + Math.cos(a) * r, o.z1 - Math.sin(a) * r];
+}
+const loopLength = () => 2 * (geo.loop.z1 - geo.loop.z0) + 2 * Math.PI * geo.loop.r;
 const riverAt = (r) => { const river = geo.rivers[r]; return river.ends ? river.ends[kOf(discs[river.belt])] : river; };
 function reverseBelt(d) {
   const river = geo.rivers[d.belt.river], L = Math.abs(river.ends[0].az - river.ends[1].az), line = lines[d.belt.river];
@@ -1437,7 +1512,7 @@ const seatText = (b) => {
   return !top ? String(b.seats - b.fill) : b.fill < b.first ? `${b.first - b.fill}<span style="color:${top}">+${b.seats - b.first}</span>` : `<span style="color:${top}">${b.seats - b.fill}</span>`;
 };
 function dotColour(i, view) {
-  if (layout.entry || layout.train) return null;
+  if (layout.entry || layout.train || layout.loop) return null;
   if ((stops[i].bus && stops[i].bus.parked) || phase !== 'playing' || closedBy(i) || spent.includes(i)) return null;
   const from = lines.findIndex((line, r) => line[0] && (layout.discs ? routeStop(r, view, CFG) === i : layout.reach[r].includes(i)));
   return from < 0 ? null : lines[from][0].c;
@@ -1490,7 +1565,40 @@ function hint(text, sticky) {
   if (text && !sticky) hintTimer = setTimeout(() => hint(levelHintOn ? level.hint : '', levelHintOn), 1500);
 }
 const minutes = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
-function updateLeft() { el('left').textContent = `${TOTAL - boarded} left`; }
+function updateLeft() { el('left').textContent = level.survival ? `${boarded} carried` : `${TOTAL - boarded} left`; }
+function spawnCrowd(r, c, n) {
+  const line = lines[r], last = line[line.length - 1], block = last && last.c === c ? last.block : ++blockSeq;
+  const free = people.filter((p) => p.state === 'gone');
+  let s0 = last ? last.s + ROW * 2 : GATE + 4;
+  for (let i = 0; i < n * UNIT; i++) {
+    let p = free.pop();
+    if (!p) {
+      if (people.length >= MAX_PEOPLE) return;
+      p = { id: people.length, bob: Math.random() * 6.28 };
+      people.push(p);
+    }
+    Object.assign(p, { c, river: r, block, lane: i % LANES, state: 'line', s: s0 + Math.floor(i / LANES) * ROW, target: 0, walk: null, path: null, stop: null, bus: null, mixTo: undefined, u: 0, hop: 0 });
+    bodies.setColorAt(p.id, paintColor.setHex(COLOURS[c].dark));
+    heads.setColorAt(p.id, paintColor.setHex(COLOURS[c].body));
+    line.push(p);
+  }
+  bodies.count = heads.count = people.length;
+  bodies.instanceColor.needsUpdate = heads.instanceColor.needsUpdate = true;
+}
+function spawnBus(l) {
+  const fronts = lines.map((line) => line[0] && line[0].c).filter((c) => c !== undefined);
+  const c = fronts.length && Math.random() < 0.7 ? fronts[Math.floor(Math.random() * fronts.length)] : Math.floor(Math.random() * level.survival.colours);
+  const mesh = makeBus(c);
+  mesh.position.set(laneX(l), 0.1, LOT_FRONT - (depot[l].length + 2) * LOT_PITCH);
+  mesh.scale.setScalar(LOT_SCALE);
+  world.add(mesh);
+  depot[l].push({ id: nextBusId++, c, n: 2 + Math.floor(Math.random() * 3), mesh, label: pin('seat', '') });
+  refreshLabels();
+}
+function keepFull() {
+  lines.forEach((line, r) => { if (line.length < 4 * UNIT) spawnCrowd(r, Math.floor(Math.random() * level.survival.colours), 2 + Math.floor(Math.random() * 3)); });
+  depot.forEach((lane, l) => { if (lane.length < 3) spawnBus(l); });
+}
 
 function twist(index) {
   if (phase !== 'playing') return;
@@ -1598,9 +1706,26 @@ function send(r, i, mixTo) {
   head.u = 0;
   runners++;
 }
+function stepOff() {
+  const P = loopLength();
+  let moved = false;
+  for (let n = lines[0].length - 1; n >= 0; n--) {
+    const p = lines[0][n], at = ((p.u0 + beltOffset) % P + P) % P;
+    const i = geo.loop.exits.findIndex((e, j) => { const d = Math.abs(at - e); return Math.min(d, P - d) < 0.3 && wants(stops[j], p.c); });
+    if (i < 0) continue;
+    const stop = stops[i], from = loopPoint(p.u0 + beltOffset, (p.lane - 1) * 0.66), g = GEO[i];
+    lines[0].splice(n, 1);
+    stop.bus.claimed++;
+    Object.assign(p, { state: 'run', stop, bus: stop.bus, u: 0, path: trail([from, [g.doorX, g.doorZ]]) });
+    runners++;
+    moved = true;
+  }
+  return moved;
+}
 function releaseFlow(dt) {
   let moved = false;
-  lines.forEach((line, r) => {
+  if (geo.loop) moved = stepOff();
+  else lines.forEach((line, r) => {
     acc[r] = Math.min(acc[r] + dt * RATE, 3);
     while (acc[r] >= 1) {
       const head = line[0];
@@ -1645,7 +1770,7 @@ function board(p) {
   bestCombo = Math.max(bestCombo, combo);
   showCombo();
   [523, 659, 784].forEach((f, n) => setTimeout(() => tone(f, 0.2, 0.12), n * 70));
-  if (boarded === TOTAL) { phase = 'done'; setTimeout(() => finish(true), 900); }
+  if (boarded === TOTAL && !level.survival) { phase = 'done'; setTimeout(() => finish(true), 900); }
 }
 function sendOff(stop) {
   const b = stop.bus, i = stops.indexOf(stop), g = GEO[i], m = b.mesh.position;
@@ -1666,7 +1791,7 @@ function sendOff(stop) {
   shake = Math.max(shake, 0.3);
   const lift = Math.min(combo, 8) * 45;
   [523, 659, 784].forEach((f, n) => setTimeout(() => tone(f + lift, 0.2, 0.12), n * 70));
-  if (boarded === TOTAL) {
+  if (boarded === TOTAL && !level.survival) {
     phase = 'done';
     setTimeout(() => finish(true), 900);
   }
@@ -1687,10 +1812,11 @@ function finish(won, why) {
   phase = 'over';
   picked = null;
   const buses = level.lanes.flat().length;
-  const stars = level.moves ? 3 : level.par ? (clock <= level.par ? 3 : clock <= level.par * 1.5 ? 2 : 1) : bestCombo >= Math.ceil(buses * 0.7) ? 3 : bestCombo >= Math.ceil(buses * 0.4) ? 2 : 1;
+  const goal = level.survival && level.survival.stars;
+  const stars = goal ? goal.filter((n) => boarded >= n).length : level.moves ? 3 : level.par ? (clock <= level.par ? 3 : clock <= level.par * 1.5 ? 2 : 1) : bestCombo >= Math.ceil(buses * 0.7) ? 3 : bestCombo >= Math.ceil(buses * 0.4) ? 2 : 1;
   el('stars').textContent = won ? '★'.repeat(stars).padEnd(3, '☆') : '';
-  el('endTitle').textContent = won ? 'All aboard!' : 'No way out';
-  el('endText').textContent = won ? (level.par ? `${TOTAL} people home in ${minutes(clock)}. Target ${minutes(level.par)}.` : `${TOTAL} people home. Best combo ×${bestCombo}.`) : why || 'No crowd can reach its bus and no bus can come. Try a different bus order.';
+  el('endTitle').textContent = goal ? "Time's up!" : won ? 'All aboard!' : 'No way out';
+  el('endText').textContent = goal ? `You carried ${boarded} people. Stars at ${goal.join(', ')}.` : won ? (level.par ? `${TOTAL} people home in ${minutes(clock)}. Target ${minutes(level.par)}.` : `${TOTAL} people home. Best combo ×${bestCombo}.`) : why || 'No crowd can reach its bus and no bus can come. Try a different bus order.';
   const next = won ? nextBuilt(levelIndex) : null;
   if (won) saveStars(levelIndex, stars);
   el('endMain').textContent = next !== null ? 'Next level' : won ? 'All levels' : 'Try again';
@@ -1704,6 +1830,7 @@ function isJammed() {
   if (runners > 0 || stops.some((st) => st.bus && !st.bus.parked)) return false;
   if (!lines.some((line) => line.length)) return false;
   const now = snapshot();
+  if (layout.loop) return !flowMoves(now, CFG).some((m) => m[0] === 'call') && !stops.some((st) => lines[0].some((p) => wants(st, p.c)));
   if (layout.train) return !flowMoves(now, CFG).length && !lines.some((line, r) => line[0] && wants(stops[r], line[0].c));
   if (flowMoves(now, CFG).some((m) => m[0] !== 'spin')) return false;
   const T = layout.turns || 2;
@@ -1721,13 +1848,16 @@ function isJammed() {
 }
 
 function drawPeople(dt, time) {
-  lines.forEach((line) => layoutLine(line));
+  if (!geo.loop) lines.forEach((line) => layoutLine(line));
   const room = lines.map((_, r) => beltRoom(r));
   people.forEach((p) => {
     let x, z, y = 0.39, scale = 1;
     if (p.state === 'gone') { scale = 0; x = z = 0; }
     else if (p.state === 'line') {
-      if (p.walk) {
+      if (geo.loop) {
+        [x, z] = loopPoint(p.u0 + beltOffset, (p.lane - 1) * 0.66);
+        y += Math.abs(Math.sin(time * 9 + p.bob)) * 0.05;
+      } else if (p.walk) {
         p.u += RUN * dt;
         [x, z] = sample(p.walk, Math.max(0, p.u));
         y += Math.abs(Math.sin(time * 15 + p.bob)) * 0.16;
@@ -1864,7 +1994,7 @@ function updateLabels() {
     place(h.exit, GEO[i].x + 2, 0.4, h.river.exit);
   });
   geo.rivers.forEach((river, r) => {
-    const box = labels.blocks[r], head = lines[r][0];
+    const box = labels.blocks[r], head = geo.loop ? null : lines[r][0];
     const html = head ? `<i style="background:${COLOURS[head.c].css}">${lines[r].filter((p) => p.block === head.block).length}</i>` : '';
     if (html !== lastBlocks[r]) { box.innerHTML = html; lastBlocks[r] = html; }
     box.style.display = html ? '' : 'none';
@@ -1905,6 +2035,20 @@ function update(dt) {
       d.spinner.rotation.y = -d.spin - (d.theta === undefined ? 0 : d.theta - d.theta0);
     }
   });
+  if (geo.loop) {
+    const dir = kOf(discs.find((d) => d.kind === 'loop')) ? -1 : 1;
+    if (phase === 'playing') beltOffset += dir * 2.4 * dt;
+    const n = chevrons.count, step = loopLength() / n;
+    for (let i = 0; i < n; i++) {
+      const u = i * step + beltOffset, [x, z] = loopPoint(u, 0), [nx, nz] = loopPoint(u + dir * 0.1, 0);
+      scratch.position.set(x, 0.2, z);
+      scratch.rotation.set(0, Math.atan2(nx - x, nz - z), 0);
+      scratch.scale.setScalar(1);
+      scratch.updateMatrix();
+      chevrons.setMatrixAt(i, scratch.matrix);
+    }
+    chevrons.instanceMatrix.needsUpdate = true;
+  }
   if (phase === 'playing' && clockwork && !clockwork.frozen) {
     clockwork.t += dt;
     if (clockwork.t >= level.clock.period) { clockwork.t = 0; discs[clockwork.d].k++; discs[clockwork.d].vel += 9; tone(150, 0.1, 0.1); }
@@ -1924,6 +2068,14 @@ function update(dt) {
       tone(392, 0.16, 0.16);
     }
   }
+  if (phase === 'playing' && level.survival) {
+    const before = Math.ceil(timeLeft);
+    timeLeft -= dt;
+    refill -= dt;
+    if (refill <= 0) { refill = 0.5; keepFull(); }
+    if (Math.ceil(timeLeft) !== before) { el('clock').textContent = `⏱ ${minutes(Math.max(0, Math.ceil(timeLeft)))}`; el('clock').classList.toggle('late', timeLeft < 10); }
+    if (timeLeft <= 0) finish(true);
+  }
   if (phase === 'playing') {
     releaseFlow(dt);
     if (level.par) {
@@ -1940,7 +2092,7 @@ function update(dt) {
   drawLot(dt, time);
   drawPops(dt);
   updateLabels();
-  if (phase === 'playing' && isJammed()) finish(false);
+  if (phase === 'playing' && !level.survival && isJammed()) finish(false);
   if (phase === 'playing' && level.moves && taps >= level.moves && !runners && sinceFlow > 1.2 && stops.every((st) => !st.bus || st.bus.parked) && !lines.some((l) => l.some((p) => p.walk))) finish(false, 'Out of taps. Plan the order before you tap.');
   shake = Math.max(0, shake - dt * 1.6);
   camera.position.copy(camera.userData.base);
@@ -2004,6 +2156,10 @@ renderer.domElement.addEventListener('pointerdown', (e) => {
     const p = front.mesh.position;
     if (Math.abs(point.x - p.x) < 1.8 && Math.abs(point.z - p.z) < 2) { if (phase === 'playing') callLane(l); return; }
     if (Math.abs(point.x - p.x) < 1.8 && point.z < p.z && depot[l].length > 1) { hint('Only the front bus can leave'); tone(90, 0.15, 0.2); return; }
+  }
+  if (level.survival && phase === 'playing') {
+    const stop = stops.find((st) => st.bus && st.bus.parked && Math.hypot(point.x - st.bus.mesh.position.x, point.z - st.bus.mesh.position.z) < 2.2);
+    if (stop) { if (stop.bus.claimed === stop.bus.fill) { sendOff(stop); combo = 0; showCombo(); } return; }
   }
   const tool = tools.findIndex((t) => Math.hypot(point.x - t.at[0], point.z - t.at[1]) < 1.8);
   if (tool >= 0) { useTool(tool); return; }
