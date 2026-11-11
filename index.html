@@ -31,6 +31,7 @@
   .blocks i:first-child { outline: 2px solid #fff; }
   .badge { width: 40px; height: 40px; border-radius: 50%; background: #fff; box-shadow: 0 3px 0 rgba(36,50,74,.3); display: flex; align-items: center; justify-content: center; }
   .badge svg { width: 26px; height: 26px; }
+  .badge i { font-style: normal; font-size: 20px; font-weight: 800; }
   .badge b { position: absolute; right: -7px; top: -7px; min-width: 20px; height: 20px; padding: 0 4px; box-sizing: border-box; border-radius: 10px; background: #24324A; color: #fff; font-size: 13px; line-height: 20px; text-align: center; }
   .seat svg { width: 16px; height: 16px; vertical-align: -2px; }
   .here { height: 44px; padding: 0 16px; border-radius: 20px; background: #FFC233; box-shadow: 0 4px 0 #CC9410; font-size: 19px; font-weight: 800; line-height: 44px; pointer-events: auto; cursor: pointer; }
@@ -67,7 +68,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/BufferGeometryUtils.js"></script>
-<script src="puzzle-rules.js?v=13"></script>
+<script src="puzzle-rules.js?v=14"></script>
 <script>
 const UNIT = 10, MAX_PEOPLE = 640, R = 2.6, GATE = R + 0.5, LANES = 3, ROW = 0.46, GAP = 0.5, WALK = 6.5, RUN = 8.5, RATE = 36, STALL = 3;
 const LOT_PITCH = 2.6, LOT_FRONT = -21, LOT_SCALE = 0.62, FRONT_SCALE = 0.86, AISLE = -18.3, DRIVE = 30, ACCEL = 60, BRAKE = 45, FAR_Z = 34;
@@ -77,7 +78,9 @@ const COLOURS = [
   { body: 0x3F86F5, dark: 0x2A5FB8, css: '#3F86F5' },
   { body: 0xFF8B2B, dark: 0xC8611A, css: '#FF8B2B' },
   { body: 0x39B97A, dark: 0x237F52, css: '#39B97A' },
-  { body: 0xA05CFF, dark: 0x6F38BF, css: '#A05CFF' }
+  { body: 0xA05CFF, dark: 0x6F38BF, css: '#A05CFF' },
+  { body: 0xFFC93C, dark: 0xD19A12, css: '#FFC93C' },
+  { body: 0xFFC233, dark: 0xF4F6FA, css: 'linear-gradient(135deg, #3F86F5, #39B97A, #FFC93C, #FF8B2B)' }
 ];
 const bus = (id, c, n) => ({ id, c, n });
 const INK = '#24324A';
@@ -91,6 +94,10 @@ const ICONS = {
   bridge: () => line2('M2.5 15.5h19') + line2('M5 15.5V11.5M19 15.5V11.5') + line2('M5 11.5q7-6.5 14 0') + line2('M9.5 15.5v-5M14.5 15.5v-5'),
   carousel: () => line2('M19.5 12a7.5 7.5 0 1 1-7.5-7.5') + line2('M11 1.8l3 2.7-3 2.7') + `<circle cx="12" cy="12" r="2.2" fill="${INK}"/>`,
   train: () => line2('M3 9.5h13M12 5.5l4 4-4 4') + line2('M2.5 17.5h19M6 15.5v4M11 15.5v4M16 15.5v4'),
+  clock: () => `<circle cx="12" cy="12" r="8" fill="none" stroke="${INK}" stroke-width="2.4"/>` + line2('M12 7.5V12l3 2'),
+  pause: () => line2('M9 6.5v11M15 6.5v11'),
+  ring: () => line2('M5 9.5a7.5 7.5 0 0 1 13.4-2.6') + line2('M18.8 3.4v3.9h-3.9') + line2('M19 14.5a7.5 7.5 0 0 1-13.4 2.6') + line2('M5.2 20.6v-3.9h3.9'),
+  tunnel: () => `<ellipse cx="12" cy="16.5" rx="8" ry="3.6" fill="${INK}"/>` + line2('M12 2.5v8M8.8 7.5l3.2 3.2 3.2-3.2'),
   lock: () => `<rect x="5" y="10" width="14" height="10" rx="2.6" fill="#FFC233" stroke="${INK}" stroke-width="2.2"/>` + line2('M8.3 10V7.6a3.7 3.7 0 0 1 7.4 0V10')
 };
 const icon = (name, colour) => `<svg viewBox="0 0 24 24">${ICONS[name](colour)}</svg>`;
@@ -147,6 +154,28 @@ const GEOMETRY = {
     roads: [[0, -7.6, 2.6, 2.5], [0, 0, 2.6, 2.5], [-3.8, -3.8, 2.5, 2.6], [3.8, -3.8, 2.5, 2.6], [-3.8, -13.6, 2.5, 6.9], [3.8, -13.6, 2.5, 6.9], [-3.8, 21.3, 2.5, 37.4], [3.8, 21.3, 2.5, 37.4], [-24.4, -7.6, 40, 2.5], [24.4, -7.6, 40, 2.5], [-24.4, 0, 40, 2.5], [24.4, 0, 40, 2.5]],
     stops: [{ ax: -3.8, az: -7.6, port: N, tight: true }, { ax: 3.8, az: -7.6, port: N, tight: true }, { ax: -3.8, az: 0, port: S, tight: true }, { ax: 3.8, az: 0, port: S, tight: true }],
     rivers: [{ ax: -3.8, az: -7.6, port: W, disc: 0, chip: [-9, -10.4], right: true }, { ax: 3.8, az: -7.6, port: E, disc: 1, chip: [9, -10.4] }, { ax: -3.8, az: 0, port: W, disc: 2, chip: [-9, -2.8], right: true }, { ax: 3.8, az: 0, port: E, disc: 3, chip: [9, -2.8] }]
+  },
+  ring: {
+    discs: [[-3.8, -4], [3.8, -4]],
+    links: RING.links,
+    ring: { x: 0, z: -4, r: 3.8 },
+    plazas: [[0, -4, 15.6, 15.6]],
+    roads: [[0, -4, 2.6, 2.5], [-24.4, -4, 40, 2.5], [24.4, -4, 40, 2.5], [-3.8, 17.8, 2.5, 38.8], [3.8, 17.8, 2.5, 38.8], [-3.8, -11.8, 2.5, 10.5], [3.8, -11.8, 2.5, 10.5]],
+    stops: [{ ax: -3.8, az: -4, port: N, tight: true }, { ax: 3.8, az: -4, port: N, tight: true }, { ax: 3.8, az: -4, port: S, tight: true }],
+    rivers: [{ ax: -3.8, az: -4, port: W, disc: 0, chip: [-9.4, -6.9], right: true }, { ax: 3.8, az: -4, port: E, disc: 1, chip: [9.4, -6.9] }, { ax: -3.8, az: -4, port: S, disc: 0, chip: [-8.2, 4], right: true }]
+  },
+  tunnel: {
+    discs: [],
+    flip: { kind: 'tunnel', x: 0, z: -2, reach: 2.6 },
+    roads: [-5, 0, 5].flatMap((x) => [[x, -13, 2.5, 8.2], [x, 21.7, 2.5, 34.6]]),
+    stops: [-5, 0, 5].map((x) => ({ ax: x, az: -7, port: N })),
+    rivers: [-5, 0, 5].map((x) => ({ ax: x, az: 3, port: S, hole: [x, 5.4], exit: -9.4, chip: [x, 3.4], mid: true }))
+  },
+  mix: {
+    discs: [],
+    roads: [[0, -9.5, 2.5, 15], [-24, -2, 40, 2.5], [24, -2, 40, 2.5]],
+    stops: [{ ax: 0, az: -2, port: N }],
+    rivers: [{ ax: 0, az: -2, port: W, chip: [-7.6, -4.9], right: true }, { ax: 0, az: -2, port: E, chip: [7.6, -4.9] }]
   },
   carousel: {
     discs: [],
@@ -489,6 +518,48 @@ const LEVELS = [
     once: [1],
     hint: 'The rope bridge holds one bus, then it falls',
     props: (p) => { p.water(12.4, 6.4, 2.6, 9); [[-5, -13], [5, -13], [-5.6, 13.6], [5.6, 13.6]].forEach(([x, z]) => p.cactus(x, z)); }
+  },
+  {
+    name: 'Gearworks', lab: true, layout: 'grid', theme: 'station', gears: [[1, 2], [0, 3], [0, 3], [1, 2]],
+    rivers: [[[2,2],[0,3],[2,2]],[[2,2],[1,3]],[[0,4],[1,3]],[[2,3],[0,2],[1,2]]],
+    lanes: [[{"id":4,"c":1,"n":3},{"id":7,"c":1,"n":2},{"id":8,"c":2,"n":3}],[{"id":2,"c":2,"n":2},{"id":1,"c":1,"n":3},{"id":6,"c":0,"n":3}],[{"id":5,"c":2,"n":4},{"id":3,"c":0,"n":4},{"id":0,"c":0,"n":2}]],
+    hint: 'Geared: turning one turns its neighbours',
+    props: () => {}
+  },
+  {
+    name: 'Clockwork', lab: true, layout: 'twin', theme: 'bridges', clock: { disc: 0, period: 3 },
+    rivers: [[[2,3],[1,3],[0,2]],[[0,2],[1,2]],[[0,4],[1,3],[2,5]]],
+    lanes: [[{"id":2,"c":1,"n":3},{"id":5,"c":2,"n":5}],[{"id":0,"c":0,"n":5},{"id":3,"c":1,"n":5}],[{"id":1,"c":0,"n":3},{"id":4,"c":2,"n":3}]],
+    hint: 'It ticks by itself. Tap to stop or start it',
+    props: (p) => { p.water(-7.8, 0, 8, 4.4); p.water(7.8, 0, 8, 4.4); }
+  },
+  {
+    name: 'Turntable Ring', lab: true, layout: 'ring', theme: 'square',
+    rivers: [[[1,2],[2,3]],[[0,2],[2,2],[0,2],[1,2],[2,2],[0,2],[1,2]],[[0,3]]],
+    lanes: [[{"id":3,"c":0,"n":4},{"id":4,"c":1,"n":2},{"id":2,"c":2,"n":3}],[{"id":1,"c":1,"n":2},{"id":0,"c":0,"n":3},{"id":6,"c":0,"n":2}],[{"id":5,"c":2,"n":4},{"id":7,"c":1,"n":2}]],
+    hint: 'Tap the middle to swap the turntables',
+    props: () => {}
+  },
+  {
+    name: 'Tunnels', lab: true, layout: 'tunnel', theme: 'orchard',
+    rivers: [[[1,2]],[[1,3],[2,4],[0,4]],[[2,2],[1,6],[0,2]]],
+    lanes: [[{"id":3,"c":0,"n":2},{"id":0,"c":0,"n":2},{"id":2,"c":2,"n":2}],[{"id":6,"c":0,"n":2},{"id":1,"c":1,"n":4},{"id":5,"c":2,"n":4}],[{"id":7,"c":1,"n":3},{"id":4,"c":1,"n":4}]],
+    hint: 'Tap the middle to switch the tunnels',
+    props: () => {}
+  },
+  {
+    name: 'Mixing Fountain', lab: true, layout: 'mix', theme: 'gate', mix: [2, 0, 4],
+    rivers: [[[0,2],[4,2],[0,2],[4,2]],[[4,5],[0,11]]],
+    lanes: [[{"id":2,"c":2,"n":4},{"id":4,"c":4,"n":2},{"id":1,"c":4,"n":3}],[{"id":3,"c":0,"n":4},{"id":0,"c":0,"n":3}],[{"id":6,"c":0,"n":4},{"id":5,"c":2,"n":4}]],
+    hint: 'Blue and yellow mix into green',
+    props: (p) => p.fountain(0, 1.8)
+  },
+  {
+    name: 'Jokers', lab: true, layout: 'one', theme: 'market',
+    rivers: [[[0,2],[1,4],[2,4],[0,3],[5,3]],[[5,3],[0,2]]],
+    lanes: [[{"id":0,"c":0,"n":2},{"id":4,"c":1,"n":4},{"id":2,"c":2,"n":4}],[{"id":1,"c":1,"n":3},{"id":5,"c":2,"n":3}],[{"id":6,"c":0,"n":2},{"id":3,"c":0,"n":3}]],
+    hint: 'Golden-hat jokers board any bus',
+    props: () => {}
   }
 ];
 
@@ -685,7 +756,7 @@ const el = (id) => document.getElementById(id);
 const scratch = new THREE.Object3D();
 let audio, phase = 'menu', countdown = 0, people = [], lines = [], acc = [], stops = [], depot = [], flying = [], discs = [];
 let boarded = 0, runners = 0, shake = 0, combo = 0, bestCombo = 0, sinceFlow = 0, labels = {}, lastBlocks = [], lastTick = 0, picked = null;
-let gone = [], letters = {}, blockers = [], clock = 0, tools = [], flipLabel = null, blockSeq = 1000, spent = [], taps = 0, titleBottom = 0, queue = [], leaving = [];
+let gone = [], letters = {}, blockers = [], clock = 0, tools = [], flipLabel = null, blockSeq = 1000, spent = [], taps = 0, titleBottom = 0, queue = [], leaving = [], clockwork = null, holes = [];
 let levelIndex = 0, level = null, geo = null, layout = null, CFG = null, GEO = [], TOTAL = 0, FAR = 28, hintTimer, levelHintOn = false;
 
 function tone(freq, length, volume) {
@@ -789,12 +860,29 @@ function buildWorld() {
       ring.translate(ax, 0.45, az);
       return coloured(ring, new THREE.Color(theme.road));
     });
-    const spinner = levelMesh([model('turntable_plate'), model('turntable_hub'), ...arcs], true);
+    const teeth = level.gears ? Array.from({ length: 18 }, (_, n) => coloured(new THREE.BoxGeometry(0.42, 0.3, 0.5), new THREE.Color(0x90A0BC)).translate(0, 0.32, 3.42).rotateY(n / 18 * Math.PI * 2)) : [];
+    const spinner = levelMesh([model('turntable_plate'), model('turntable_hub'), ...arcs, ...teeth], true);
     spinner.position.set(x, 0, z);
     world.add(spinner);
     return { x, z, spinner, k: 0, spin: 0, vel: 0 };
   });
+  if (geo.ring) {
+    const o = geo.ring, track = new THREE.RingGeometry(o.r - 0.3, o.r + 0.3, 64);
+    track.rotateX(-Math.PI / 2);
+    slab(track, KERB, o.x, 0.12, o.z);
+    slab(new THREE.CylinderGeometry(1, 1, 0.3, 24), 0xFFC233, o.x, 0.15, o.z);
+    discs.forEach((d, i) => { d.theta = d.theta0 = d.thetaT = i ? 0 : Math.PI; });
+    discs.push({ kind: 'ring', x: o.x, z: o.z, reach: 1.8, spinner: new THREE.Group(), k: 0, spin: 0, vel: 0 });
+  }
+  geo.rivers.forEach((river) => {
+    if (!river.hole) return;
+    [[river.hole[0], river.hole[1]], [river.ax, river.exit]].forEach(([x, z]) => {
+      slab(new THREE.CylinderGeometry(1.05, 1.05, 0.05, 24), 0x90A0BC, x, 0.13, z);
+      slab(new THREE.CylinderGeometry(0.8, 0.8, 0.06, 24), 0x2F3546, x, 0.14, z);
+    });
+  });
   const f = geo.flip;
+  if (f && f.kind === 'tunnel') discs.push({ kind: 'tunnel', x: f.x, z: f.z, reach: f.reach, spinner: new THREE.Group(), k: 0, spin: 0, vel: 0 });
   if (f && f.kind === 'points') {
     const strip = (x, len, turn) => {
       const g = coloured(new THREE.BoxGeometry(0.5, 0.03, len), new THREE.Color(0xFFC233));
@@ -898,7 +986,7 @@ function loadLevel(i) {
   level = LEVELS[i];
   layout = LAYOUTS[level.layout];
   geo = GEOMETRY[level.layout];
-  CFG = { layout: level.layout, caps: [0, 0, 0, 0], closed: level.closed || [], locked: level.locked || [], tools: level.tools || [], once: level.once || [] };
+  CFG = { layout: level.layout, caps: [0, 0, 0, 0], closed: level.closed || [], locked: level.locked || [], tools: level.tools || [], once: level.once || [], gears: level.gears, mix: level.mix };
   GEO = geo.stops.map((s) => {
     const [dx, dz] = PORT[s.port];
     const door = R + (s.tight ? 1.4 : 1.9), park = R + (s.tight ? 3.4 : 4.3);
@@ -914,14 +1002,15 @@ function loadLevel(i) {
   el('name').textContent = level.lab ? `Lab: ${level.name}` : `${i + 1}. ${level.name}`;
 }
 
-const kOf = (d) => (d.kind === 'train' ? d.k : d.k % (layout.turns || 2));
+const kOf = (d) => (d.kind === 'train' ? d.k : ((d.k % (layout.turns || 2)) + (layout.turns || 2)) % (layout.turns || 2));
 const routeView = (k) => ({
   k: k || discs.map(kOf),
   rivers: lines.map((line) => (line[0] ? [[line[0].c, 1]] : [])),
   stops: stops.map((st) => ({ bus: st.bus ? { c: st.bus.c, n: st.bus.first, c2: st.bus.c2, n2: st.bus.seats - st.bus.first, fill: st.bus.claimed } : null }))
 });
 const routeOf = (r) => routeStop(r, routeView(), CFG);
-const wants = (stop, c) => !!stop.bus && stop.bus.parked && stop.bus.claimed < stop.bus.seats && (stop.bus.claimed < stop.bus.first ? stop.bus.c : stop.bus.c2) === c;
+const wantOf = (b) => (b.claimed < b.first ? b.c : b.c2);
+const wants = (stop, c) => !!stop.bus && stop.bus.parked && stop.bus.claimed < stop.bus.seats && (wantOf(stop.bus) === c || c === JOKER);
 const closedBy = (i) => CFG.closed.find(([stop, key]) => stop === i && !gone.includes(key));
 const lockedBy = (d) => CFG.locked.find(([disc, key]) => disc === d && !gone.includes(key));
 
@@ -994,6 +1083,9 @@ function reset() {
     world.add(t.plank);
   });
   tools.forEach(toolLabel);
+  if (geo.ring) discs.slice(0, 2).sort((a, b) => b.theta0 - a.theta0).forEach((d, i) => { discs[i] = d; d.x = geo.discs[i][0]; d.theta = d.thetaT = d.theta0; });
+  clockwork = level.clock ? { d: level.clock.disc, t: 0, frozen: false, label: pin('badge', badge('clock')) } : null;
+  holes = geo.rivers.filter((river) => river.hole).map((river, r) => ({ river, r, label: pin('badge', `<i>${'ABC'[r]}</i>`), exit: pin('badge', '') }));
   const flip = discs.find((d) => d.kind);
   flipLabel = flip ? pin('badge', badge(flip.kind)) : null;
   letters = {};
@@ -1089,7 +1181,7 @@ function buildPath(p, stopIndex) {
   if (river.junction) points.push([river.ax + lat * 0.5, river.az]);
   let disc = river.disc, port = river.port;
   for (let guard = 0; guard < 6 && disc !== undefined; guard++) {
-    const d = discs[disc], k = d.k, local = ((port - k) % 4 + 4) % 4, out = (((local < 2 ? 1 - local : 5 - local) + k) % 4);
+    const d = discs[disc], k = d.k, local = ((port - k) % 4 + 4) % 4, out = ((((local < 2 ? 1 - local : 5 - local) + k) % 4) + 4) % 4;
     const first = local % 2 === 0, turn = k * Math.PI / 2, r = R + lat;
     for (let i = 0; i <= 12; i++) {
       const t = (first ? i / 12 : 1 - i / 12) * Math.PI / 2;
@@ -1101,8 +1193,11 @@ function buildPath(p, stopIndex) {
     if (link) [disc, port] = link; else break;
   }
   if (river.via) points.push([river.ax + lat, river.az], [g.doorX + lat, geo.via]);
+  if (river.hole) points.push([river.hole[0] + lat * 0.4, river.hole[1]], [g.x + lat * 0.4, river.exit]);
   points.push([g.doorX + (g.dz ? lat * 0.3 : 0), g.doorZ + (g.dx ? lat * 0.3 : 0)]);
-  return trail(points);
+  const path = trail(points);
+  if (river.hole) path.hide = [path.lengths[1], path.lengths[2]];
+  return path;
 }
 function trail(points) {
   const lengths = [0];
@@ -1276,7 +1371,7 @@ function tapDot(i) {
     return;
   }
   const colour = dotColour(i, routeView());
-  const lane = depot.findIndex((l) => l[0] && !isLocked(l[0]) && l[0].c === colour && allowedStops(now, seatsOf(l[0]), CFG).includes(i));
+  const lane = depot.findIndex((l) => l[0] && !isLocked(l[0]) && (l[0].c === colour || colour === JOKER) && allowedStops(now, seatsOf(l[0]), CFG).includes(i));
   if (lane < 0) {
     hint('No matching bus at the front');
     tone(90, 0.15, 0.2);
@@ -1320,6 +1415,13 @@ function twist(index) {
   const lock = lockedBy(index);
   if (lock) { hint(`The bridge opens when bus ${letters[lock[1]]} leaves`); tone(90, 0.15, 0.2); return; }
   const kind = discs[index].kind;
+  if (clockwork && index === clockwork.d) {
+    clockwork.frozen = !clockwork.frozen;
+    clockwork.label.innerHTML = badge(clockwork.frozen ? 'pause' : 'clock');
+    clearLevelHint();
+    tone(clockwork.frozen ? 160 : 240, 0.12, 0.12);
+    return;
+  }
   if (kind === 'carousel' && stops.some((st) => st.bus && !st.bus.parked)) { hint('Wait for the bus to park'); tone(90, 0.15, 0.2); return; }
   if (kind === 'train' && !queue.length && !stops.some((st) => st.bus)) { hint('Tap a bus to couple it first'); tone(90, 0.15, 0.2); return; }
   if (!spend()) return;
@@ -1327,6 +1429,11 @@ function twist(index) {
   discs[index].k++;
   if (kind === 'train') advanceTrain();
   if (!discs[index].kind) discs[index].vel += 9;
+  if (CFG.gears) CFG.gears[index].forEach((n) => { discs[n].k--; discs[n].vel -= 9; });
+  if (kind === 'ring') {
+    [discs[0], discs[1]] = [discs[1], discs[0]];
+    discs.slice(0, 2).forEach((d, i) => { d.x = geo.discs[i][0]; d.thetaT += Math.PI; });
+  }
   tone(190, 0.14, 0.13);
 }
 function toolLabel(t) {
@@ -1397,6 +1504,17 @@ function showCombo() {
   void node.offsetWidth;
   node.classList.add('pop');
 }
+function send(r, i, mixTo) {
+  const head = lines[r].shift(), stop = stops[i];
+  stop.bus.claimed++;
+  head.state = 'run';
+  head.stop = stop;
+  head.bus = stop.bus;
+  head.mixTo = mixTo;
+  head.path = buildPath(head, i);
+  head.u = 0;
+  runners++;
+}
 function releaseFlow(dt) {
   let moved = false;
   lines.forEach((line, r) => {
@@ -1404,17 +1522,20 @@ function releaseFlow(dt) {
     while (acc[r] >= 1) {
       const head = line[0];
       if (!head || head.walk || head.s > GATE + 1) break;
-      const i = routeOf(r), stop = i === null ? null : stops[i];
+      const i = routeOf(r), stop = i === null ? null : stops[i], mix = CFG.mix;
+      if (mix && stop && stop.bus && stop.bus.parked && wantOf(stop.bus) === mix[0] && (head.c === mix[1] || head.c === mix[2])) {
+        const pair = head.c === mix[1] ? mix[2] : mix[1];
+        const o = lines.findIndex((l, r2) => l[0] && l[0].c === pair && !l[0].walk && l[0].s <= GATE + 1 && routeOf(r2) === i);
+        if (o < 0 || stop.bus.claimed + 2 > stop.bus.seats) { acc[r] = 0; break; }
+        acc[r] -= 1;
+        send(r, i, mix[0]);
+        send(o, i, mix[0]);
+        moved = true;
+        continue;
+      }
       if (!stop || !wants(stop, head.c)) { acc[r] = 0; break; }
       acc[r] -= 1;
-      line.shift();
-      stop.bus.claimed++;
-      head.state = 'run';
-      head.stop = stop;
-      head.bus = stop.bus;
-      head.path = buildPath(head, i);
-      head.u = 0;
-      runners++;
+      send(r, i);
       moved = true;
     }
   });
@@ -1511,6 +1632,7 @@ function isJammed() {
       const i = routeStop(r, view, CFG);
       if (head && i !== null && wants(stops[i], head.c)) return false;
     }
+    if (CFG.mix && stops.some((st, i) => st.bus && st.bus.parked && wantOf(st.bus) === CFG.mix[0] && CFG.mix.slice(1).every((c) => lines.some((line, r) => line[0] && line[0].c === c && routeStop(r, view, CFG) === i)))) return false;
   }
   return true;
 }
@@ -1532,11 +1654,20 @@ function drawPeople(dt, time) {
         y += Math.abs(Math.sin(time * 9 + p.bob)) * 0.05;
       }
     } else if (p.state === 'run') {
-      p.u += RUN * dt;
+      const under = p.path.hide && p.u > p.path.hide[0] && p.u < p.path.hide[1];
+      p.u += RUN * dt * (under ? 3 : 1);
       [x, z] = sample(p.path, p.u);
       p.x = x; p.z = z;
       y += Math.abs(Math.sin(time * 15 + p.bob)) * 0.16;
-      if (p.u >= p.path.total) { p.state = 'hop'; p.hop = 0; p.hx = x; p.hz = z; }
+      if (under) scale = 0;
+      if (p.u >= p.path.total) {
+        p.state = 'hop'; p.hop = 0; p.hx = x; p.hz = z;
+        if (p.mixTo !== undefined) {
+          bodies.setColorAt(p.id, paintColor.setHex(COLOURS[p.mixTo].dark));
+          heads.setColorAt(p.id, paintColor.setHex(COLOURS[p.mixTo].body));
+          bodies.instanceColor.needsUpdate = heads.instanceColor.needsUpdate = true;
+        }
+      }
     } else {
       p.hop += dt * 5;
       const t = Math.min(1, p.hop), m = p.bus.mesh.position;
@@ -1640,6 +1771,13 @@ function updateLabels() {
   tools.forEach((t) => { if (t.plank) t.plank.rotation.z += ((t.uses ? 1.25 : 0) - t.plank.rotation.z) * Math.min(1, 1 / 10); });
   tools.forEach((t) => (t.kind === 'paint' ? place(t.label, t.at[0], 3.6, t.at[1]) : place(t.label, t.at[0] + 2.6, 0.4, t.at[1] - 2)));
   if (flipLabel) { const d = discs.find((x) => x.kind); place(flipLabel, d.x, 0.4, d.z); }
+  if (clockwork) { const d = discs[clockwork.d]; place(clockwork.label, d.x + 3.6, 0.4, d.z - 2.6); }
+  holes.forEach((h, i) => {
+    place(h.label, h.river.hole[0] + 2.1, 0.4, h.river.hole[1] - 0.6);
+    const from = holes.find((x) => routeOf(x.r) === i), text = from ? `<i>${'ABC'[from.r]}</i>` : '';
+    if (h.exit.dataset.text !== text) { h.exit.innerHTML = text; h.exit.dataset.text = text; }
+    place(h.exit, GEO[i].x + 2, 0.4, h.river.exit);
+  });
   geo.rivers.forEach((river, r) => {
     const box = labels.blocks[r], head = lines[r][0];
     const html = head ? `<i style="background:${COLOURS[head.c].css}">${lines[r].filter((p) => p.block === head.block).length}</i>` : '';
@@ -1671,8 +1809,18 @@ function update(dt) {
         g.doorZ = d.z + g.dz * 6.4;
         g.face = Math.atan2(-g.dx, -g.dz);
       });
-    } else if (!d.kind) d.spinner.rotation.y = -d.spin;
+    } else if (!d.kind) {
+      if (d.theta !== undefined) {
+        d.theta += (d.thetaT - d.theta) * Math.min(1, dt * 4);
+        d.spinner.position.set(geo.ring.x + Math.cos(d.theta) * geo.ring.r, 0, geo.ring.z + Math.sin(d.theta) * geo.ring.r);
+      }
+      d.spinner.rotation.y = -d.spin - (d.theta === undefined ? 0 : d.theta - d.theta0);
+    }
   });
+  if (phase === 'playing' && clockwork && !clockwork.frozen) {
+    clockwork.t += dt;
+    if (clockwork.t >= level.clock.period) { clockwork.t = 0; discs[clockwork.d].k++; discs[clockwork.d].vel += 9; tone(150, 0.1, 0.1); }
+  }
   if (phase === 'countdown') {
     const before = Math.ceil(countdown);
     countdown -= dt;

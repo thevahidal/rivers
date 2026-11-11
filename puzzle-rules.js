@@ -42,6 +42,7 @@ function clone(s) {
   };
 }
 
+const JOKER = 5;
 const busSeats = (bus) => bus.n + (bus.n2 || 0);
 const wantsColour = (bus) => (bus.fill < bus.n ? bus.c : bus.c2);
 const isOpen = (s, cfg, i) => !(s.spent || []).includes(i) && !(cfg.closed || []).some(([stop, key]) => stop === i && !s.gone.includes(key));
@@ -76,12 +77,24 @@ function settle(s, cfg, events) {
         changed = true;
       }
     });
+    if (cfg.mix) s.stops.forEach((stop, i) => {
+      const bus = stop.bus, [out, a, b] = cfg.mix;
+      if (!bus || wantsColour(bus) !== out) return;
+      const from = (c) => s.rivers.findIndex((river, r) => river[0] && river[0][0] === c && routeStop(r, s, cfg) === i);
+      const ra = from(a), rb = from(b), room = Math.floor(((bus.fill < bus.n ? bus.n : busSeats(bus)) - bus.fill) / 2);
+      if (ra < 0 || rb < 0 || room < 1) return;
+      const n = Math.min(s.rivers[ra][0][1], s.rivers[rb][0][1], room);
+      [ra, rb].forEach((r) => { s.rivers[r][0][1] -= n; if (!s.rivers[r][0][1]) s.rivers[r].shift(); });
+      bus.fill += n * 2;
+      events.push({ type: 'mix', stop: i, n });
+      changed = true;
+    });
     s.rivers.forEach((river, r) => {
       const front = river[0];
       if (!front) return;
       const i = routeStop(r, s, cfg);
       const bus = i === null ? null : s.stops[i].bus;
-      if (!bus || bus.fill === busSeats(bus) || wantsColour(bus) !== front[0]) return;
+      if (!bus || bus.fill === busSeats(bus) || (wantsColour(bus) !== front[0] && front[0] !== JOKER)) return;
       const n = Math.min(front[1], (bus.fill < bus.n ? bus.n : busSeats(bus)) - bus.fill);
       front[1] -= n;
       bus.fill += n;
@@ -136,7 +149,9 @@ function apply(s, cfg, move) {
     next.k[0]++;
     events.push({ type: 'advance' });
   } else if (move[0] === 'spin') {
-    next.k[move[1]] = (next.k[move[1]] + 1) % ((layout && layout.turns) || 2);
+    const turns = (layout && layout.turns) || 2;
+    if (layout && layout.swap && move[1] === 2) [next.k[0], next.k[1]] = [next.k[1], next.k[0]];
+    [move[1], ...((cfg.gears && cfg.gears[move[1]]) || [])].forEach((d) => { next.k[d] = (next.k[d] + 1) % turns; });
     events.push({ type: 'spin', disc: move[1] });
   } else if (move[0] === 'tool') {
     const tool = cfg.tools[move[1]], river = next.rivers[tool.river];
@@ -217,27 +232,33 @@ const GRID = {
   exits: { '0:0': 0, '1:0': 1, '2:2': 2, '3:2': 3 },
   entries: [[0, 3], [1, 1], [2, 3], [3, 1]]
 };
-function walkGrid(r, k) {
-  let [disc, port] = GRID.entries[r];
+const RING = {
+  links: { '0:1': [1, 3], '1:3': [0, 1] },
+  exits: { '0:0': 0, '1:0': 1, '1:2': 2 },
+  entries: [[0, 3], [1, 1], [0, 2]]
+};
+function walk(topo, r, k) {
+  let [disc, port] = topo.entries[r];
   for (let guard = 0; guard < 6; guard++) {
     const turn = k[disc] % 2, local = (port - turn + 4) % 4, out = ((local < 2 ? 1 - local : 5 - local) + turn) % 4, key = disc + ':' + out;
-    if (GRID.exits[key] !== undefined) return GRID.exits[key];
-    if (!GRID.links[key]) return null;
-    [disc, port] = GRID.links[key];
+    if (topo.exits[key] !== undefined) return topo.exits[key];
+    if (!topo.links[key]) return null;
+    [disc, port] = topo.links[key];
   }
   return null;
 }
-LAYOUTS.grid = {
-  stops: 4, discs: 4,
-  route: (r, s) => walkGrid(r, s.k),
-  reach: [0, 1, 2, 3].map((r) => [...new Set(Array.from({ length: 16 }, (_, m) => walkGrid(r, [0, 1, 2, 3].map((d) => (m >> d) & 1))).filter((i) => i !== null))])
-};
+const reachOf = (topo, discs) => topo.entries.map((_, r) => [...new Set(Array.from({ length: 1 << discs }, (_, m) => walk(topo, r, Array.from({ length: discs }, (_, d) => (m >> d) & 1))).filter((i) => i !== null))]);
+LAYOUTS.grid = { stops: 4, discs: 4, route: (r, s) => walk(GRID, r, s.k), reach: reachOf(GRID, 4) };
+LAYOUTS.ring = { stops: 3, discs: 3, swap: true, route: (r, s) => walk(RING, r, s.k), reach: reachOf(RING, 2) };
+LAYOUTS.tunnel = { stops: 3, discs: 1, turns: 3, reach: [[0, 1, 2], [0, 1, 2], [0, 1, 2]], route: (r, s) => (r + s.k[0]) % 3 };
+LAYOUTS.mix = { stops: 1, discs: 0, reach: [[0], [0]], route: () => 0 };
 
 function allowedStops(s, bus, cfg) {
   const layout = LAYOUTS[cfg.layout];
   const stops = Array.from({ length: layout.stops }, (_, i) => i).filter((i) => !s.stops[i].bus && isOpen(s, cfg, i) && (!layout.entry || layout.entry(s) === i));
   const supply = (i, colour) => s.rivers.reduce((sum, river, r) => (layout.reach[r] && layout.reach[r].includes(i) ? sum + river.reduce((n, [c, k]) => (c === colour ? n + k : n), 0) : sum), 0);
-  return stops.filter((i) => supply(i, bus.c) >= bus.n && (!bus.n2 || supply(i, bus.c2) >= bus.n2));
+  const have = (i, c) => supply(i, c) + supply(i, JOKER) + (cfg.mix && c === cfg.mix[0] ? 2 * Math.min(supply(i, cfg.mix[1]), supply(i, cfg.mix[2])) : 0);
+  return stops.filter((i) => have(i, bus.c) >= bus.n && (!bus.n2 || have(i, bus.c2) >= bus.n2));
 }
 
 function flowMoves(s, cfg) {
@@ -255,4 +276,4 @@ function flowMoves(s, cfg) {
   return out;
 }
 
-if (typeof module !== 'undefined') module.exports = { RIVER_E, RIVER_W, RIVER_S, STOP_N, STOP_E, STOP_W, STOP_BAY, routeStop, newState, clone, platUsed, settle, canCall, legalMoves, apply, isWon, isJammed, LAYOUTS, allowedStops, flowMoves, busSeats, wantsColour, isOpen, canSpin, canUse };
+if (typeof module !== 'undefined') module.exports = { RIVER_E, RIVER_W, RIVER_S, STOP_N, STOP_E, STOP_W, STOP_BAY, routeStop, newState, clone, platUsed, settle, canCall, legalMoves, apply, isWon, isJammed, LAYOUTS, allowedStops, flowMoves, busSeats, wantsColour, isOpen, canSpin, canUse, JOKER, RING };
