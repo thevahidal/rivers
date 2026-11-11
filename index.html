@@ -70,7 +70,7 @@
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/BufferGeometryUtils.js"></script>
 <script src="puzzle-rules.js?v=17"></script>
 <script>
-const UNIT = 10, MAX_PEOPLE = 640, R = 2.6, GATE = R + 0.5, LANES = 3, ROW = 0.46, GAP = 0.5, WALK = 6.5, RUN = 8.5, RATE = 36, STALL = 3;
+const UNIT = 10, MAX_PEOPLE = 640, R = 2.6, GATE = R + 0.5, LANES = 3, ROW = 0.46, WALK = 6.5, RUN = 8.5, RATE = 36, STALL = 3;
 const LOT_PITCH = 2.6, LOT_FRONT = -21, LOT_SCALE = 0.62, FRONT_SCALE = 0.86, AISLE = -18.3, DRIVE = 30, ACCEL = 60, BRAKE = 45, FAR_Z = 34;
 const N = 0, E = 1, S = 2, W = 3, BLUE = 0, ORANGE = 1;
 const PORT = [[0, -1], [1, 0], [0, 1], [-1, 0]];
@@ -837,7 +837,7 @@ const el = (id) => document.getElementById(id);
 const scratch = new THREE.Object3D();
 let audio, phase = 'menu', countdown = 0, people = [], lines = [], acc = [], stops = [], depot = [], flying = [], discs = [];
 let boarded = 0, runners = 0, shake = 0, combo = 0, bestCombo = 0, sinceFlow = 0, labels = {}, lastBlocks = [], lastTick = 0, picked = null;
-let gone = [], letters = {}, blockers = [], clock = 0, tools = [], flipLabel = null, blockSeq = 1000, spent = [], taps = 0, titleBottom = 0, queue = [], leaving = [], clockwork = null, holes = [], beltOffset = 0, chevrons = null, timeLeft = 0, refill = 0, nextBusId = 1000;
+let gone = [], letters = {}, blockers = [], clock = 0, tools = [], flipLabel = null, blockSeq = 1000, spent = [], taps = 0, titleBottom = 0, queue = [], leaving = [], clockwork = null, holes = [], beltOffset = 0, chevrons = null, timeLeft = 0, refill = 0, nextBusId = 1000, feeds = [];
 let levelIndex = 0, level = null, geo = null, layout = null, CFG = null, GEO = [], TOTAL = 0, FAR = 28, hintTimer, levelHintOn = false;
 
 function tone(freq, length, volume) {
@@ -1262,6 +1262,8 @@ function reset() {
   taps = 0;
   clock = 0;
   el('clock').style.display = level.par || level.moves || level.survival ? '' : 'none';
+  feeds = lines.map(() => ({ c: 0, left: 0, acc: 0 }));
+  if (level.survival) for (let i = 0; i < 200; i++) { streamCrowds(1); lines.forEach((line) => layoutLine(line, true)); }
   if (level.survival) { timeLeft = level.survival.time; refill = 0; el('clock').textContent = `⏱ ${minutes(timeLeft)}`; el('clock').classList.remove('late'); }
   showTaps();
   refreshLabels();
@@ -1296,11 +1298,8 @@ function refreshLabels() {
 }
 function layoutLine(line, instant) {
   const count = [0, 0, 0];
-  let lastBlock = null, offset = 0;
   line.forEach((p) => {
-    if (lastBlock !== null && p.block !== lastBlock) offset += GAP;
-    lastBlock = p.block;
-    p.target = GATE + 0.25 + count[p.lane] * ROW + offset;
+    p.target = GATE + 0.25 + count[p.lane] * ROW;
     count[p.lane]++;
     if (instant) p.s = p.target;
   });
@@ -1566,24 +1565,30 @@ function hint(text, sticky) {
 }
 const minutes = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
 function updateLeft() { el('left').textContent = level.survival ? `${boarded} carried` : `${TOTAL - boarded} left`; }
-function spawnCrowd(r, c, n) {
-  const line = lines[r], last = line[line.length - 1], block = last && last.c === c ? last.block : ++blockSeq;
-  const free = people.filter((p) => p.state === 'gone');
-  let s0 = last ? last.s + ROW * 2 : GATE + 4;
-  for (let i = 0; i < n * UNIT; i++) {
-    let p = free.pop();
-    if (!p) {
-      if (people.length >= MAX_PEOPLE) return;
-      p = { id: people.length, bob: Math.random() * 6.28 };
-      people.push(p);
-    }
-    Object.assign(p, { c, river: r, block, lane: i % LANES, state: 'line', s: s0 + Math.floor(i / LANES) * ROW, target: 0, walk: null, path: null, stop: null, bus: null, mixTo: undefined, u: 0, hop: 0 });
-    bodies.setColorAt(p.id, paintColor.setHex(COLOURS[c].dark));
-    heads.setColorAt(p.id, paintColor.setHex(COLOURS[c].body));
-    line.push(p);
+function spawnPerson(r, c) {
+  const line = lines[r], last = line[line.length - 1];
+  let p = people.find((q) => q.state === 'gone');
+  if (!p) {
+    if (people.length >= MAX_PEOPLE) return false;
+    p = { id: people.length, bob: Math.random() * 6.28 };
+    people.push(p);
+    bodies.count = heads.count = people.length;
   }
-  bodies.count = heads.count = people.length;
+  const block = last && last.c === c ? last.block : ++blockSeq;
+  Object.assign(p, { c, river: r, block, lane: line.filter((q) => q.block === block).length % LANES, state: 'line', s: Math.max(30, last ? last.s + 0.15 : 0), target: 0, walk: null, path: null, stop: null, bus: null, mixTo: undefined, u: 0, hop: 0 });
+  bodies.setColorAt(p.id, paintColor.setHex(COLOURS[c].dark));
+  heads.setColorAt(p.id, paintColor.setHex(COLOURS[c].body));
   bodies.instanceColor.needsUpdate = heads.instanceColor.needsUpdate = true;
+  line.push(p);
+  return true;
+}
+function streamCrowds(dt) {
+  lines.forEach((line, r) => {
+    const f = feeds[r];
+    if (!f.left) { f.c = Math.floor(Math.random() * level.survival.colours); f.left = (2 + Math.floor(Math.random() * 3)) * UNIT; }
+    f.acc = Math.min(f.acc + dt * 40, 3);
+    while (f.acc >= 1 && f.left && (!line.length || line[line.length - 1].target < 24) && spawnPerson(r, f.c)) { f.acc--; f.left--; layoutLine(line); }
+  });
 }
 function spawnBus(l) {
   const fronts = lines.map((line) => line[0] && line[0].c).filter((c) => c !== undefined);
@@ -1596,7 +1601,6 @@ function spawnBus(l) {
   refreshLabels();
 }
 function keepFull() {
-  lines.forEach((line, r) => { if (line.length < 4 * UNIT) spawnCrowd(r, Math.floor(Math.random() * level.survival.colours), 2 + Math.floor(Math.random() * 3)); });
   depot.forEach((lane, l) => { if (lane.length < 3) spawnBus(l); });
 }
 
@@ -1770,7 +1774,7 @@ function board(p) {
   bestCombo = Math.max(bestCombo, combo);
   showCombo();
   [523, 659, 784].forEach((f, n) => setTimeout(() => tone(f, 0.2, 0.12), n * 70));
-  if (boarded === TOTAL && !level.survival) { phase = 'done'; setTimeout(() => finish(true), 900); }
+  if (boarded === TOTAL && !level.survival) { phase = 'done'; setTimeout(() => { if (phase === 'done') finish(true); }, 900); }
 }
 function sendOff(stop) {
   const b = stop.bus, i = stops.indexOf(stop), g = GEO[i], m = b.mesh.position;
@@ -1793,7 +1797,7 @@ function sendOff(stop) {
   [523, 659, 784].forEach((f, n) => setTimeout(() => tone(f + lift, 0.2, 0.12), n * 70));
   if (boarded === TOTAL && !level.survival) {
     phase = 'done';
-    setTimeout(() => finish(true), 900);
+    setTimeout(() => { if (phase === 'done') finish(true); }, 900);
   }
 }
 
@@ -2073,6 +2077,7 @@ function update(dt) {
     timeLeft -= dt;
     refill -= dt;
     if (refill <= 0) { refill = 0.5; keepFull(); }
+    streamCrowds(dt);
     if (Math.ceil(timeLeft) !== before) { el('clock').textContent = `⏱ ${minutes(Math.max(0, Math.ceil(timeLeft)))}`; el('clock').classList.toggle('late', timeLeft < 10); }
     if (timeLeft <= 0) finish(true);
   }
