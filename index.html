@@ -1245,8 +1245,14 @@ function layoutLine(line, instant) {
 const riverAt = (r) => { const river = geo.rivers[r]; return river.ends ? river.ends[kOf(discs[river.belt])] : river; };
 function reverseBelt(d) {
   const river = geo.rivers[d.belt.river], L = Math.abs(river.ends[0].az - river.ends[1].az), line = lines[d.belt.river];
-  line.forEach((p) => { p.s = L - p.s; });
+  line.forEach((p) => { p.s = Math.max(GATE + 0.25, L - p.s); });
   line.reverse();
+}
+function beltRoom(r) {
+  const river = geo.rivers[r];
+  if (!river.ends) return Infinity;
+  const end = riverAt(r), b = geo.belts.find((x) => x.river === r);
+  return (end.port === S ? b.z1 - end.az : end.az - b.z0) - 0.3;
 }
 function linePos(p) {
   const river = riverAt(p.river), [dx, dz] = PORT[river.port], lat = (p.lane - 1) * 0.66 + (p.back ? 1.9 : 0);
@@ -1716,6 +1722,7 @@ function isJammed() {
 
 function drawPeople(dt, time) {
   lines.forEach((line) => layoutLine(line));
+  const room = lines.map((_, r) => beltRoom(r));
   people.forEach((p) => {
     let x, z, y = 0.39, scale = 1;
     if (p.state === 'gone') { scale = 0; x = z = 0; }
@@ -1729,6 +1736,7 @@ function drawPeople(dt, time) {
         p.s = p.s === p.target ? p.s : Math.max(p.target, p.s - (phase === 'playing' ? WALK * dt : 0));
         [x, z] = linePos(p);
         y += Math.abs(Math.sin(time * 9 + p.bob)) * 0.05;
+        if (p.s > room[p.river]) scale = 0;
       }
     } else if (p.state === 'run') {
       const under = p.path.hide && p.u > p.path.hide[0] && p.u < p.path.hide[1];
